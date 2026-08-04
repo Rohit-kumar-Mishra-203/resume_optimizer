@@ -1,0 +1,19 @@
+# Secrets - NEVER commit this
+.env
+
+# Virtual environment
+roenv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated files (your personal data + outputs)
+data/resume_facts.json
+data/generated/
+data/base_resume.tex
+
+# OS junk
+.DS_Store
+Thumbs.db

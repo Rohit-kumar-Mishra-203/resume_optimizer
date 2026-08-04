@@ -1,0 +1,144 @@
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\setlength{\multicolsep}{-3.0pt}
+\setlength{\columnsep}{-1pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.75in}
+\addtolength{\evensidemargin}{-0.75in}
+\addtolength{\textwidth}{1.45in}
+\addtolength{\topmargin}{-0.9in}
+\addtolength{\textheight}{1.8in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-8pt}\scshape\raggedright\large\bfseries
+}{}{0em}{}[\color{black}\titlerule \vspace{-7pt}]
+
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-4pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textbf{\small #2} \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{1.001\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & \textbf{\small #2}\\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\renewcommand\labelitemi{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+    {\Huge \scshape (((personal_info.name))) } \\ \vspace{1pt}
+    \small \raisebox{-0.1\height}\faPhone\ \href{tel:(((personal_info.phone_tel)))}{(((personal_info.phone)))} ~ \href{mailto:(((personal_info.email)))}{\raisebox{-0.2\height}\faEnvelope\ \underline{(((personal_info.email)))}} ~
+    \href{(((personal_info.linkedin_url)))}{\raisebox{-0.2\height}\faLinkedin\ \underline{(((personal_info.linkedin_label)))}} ~
+    \href{(((personal_info.github_url)))}{\raisebox{-0.2\height}\faGithub\ \underline{(((personal_info.github_label)))}}
+    \vspace{-8pt}
+\end{center}
+
+\section{Profile Summary}
+(((summary)))
+\vspace{0.5mm}
+\vspace{-8pt}
+
+\section{Experience}
+  \resumeSubHeadingListStart
+  ((* for exp in experience *))
+  \resumeSubheading
+      {(((exp.company)))}{(((exp.start_date))) -- (((exp.end_date)))}
+      {(((exp.role)))}{(((exp.location)))}
+      \resumeItemListStart
+      ((* for bullet in exp.bullets *))
+              \resumeItem{(((bullet.text)))}
+      ((* endfor *))
+        \resumeItemListEnd
+  ((* endfor *))
+  \resumeSubHeadingListEnd
+\vspace{-12pt}
+
+\section{Education}
+  \resumeSubHeadingListStart
+  ((* for edu in education *))
+    \resumeSubheading
+      {(((edu.institution)))}{(((edu.start_date))) -- (((edu.end_date)))}
+      {(((edu.degree)))}{}
+  ((* endfor *))
+  \resumeSubHeadingListEnd
+
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+    ((* for cat in skills *))
+     \textbf{(((cat.category))):} (((cat.items_joined)))\\
+    ((* endfor *))
+    }}
+ \end{itemize}
+ \vspace{-16pt}
+
+\section{Projects}
+    \vspace{-5pt}
+    \resumeSubHeadingListStart
+    ((* for proj in projects *))
+           \resumeProjectHeading
+          {\textbf{(((proj.name)))} $|$ \emph{(((proj.tech_stack_joined)))}}((* if proj.link *)){\href{(((proj.link)))}{(((proj.link_label)))}}((* else *)){(((proj.link_label)))}((* endif *))
+          \resumeItemListStart
+          ((* for bullet in proj.bullets *))
+            \resumeItem{(((bullet.text)))}
+          ((* endfor *))
+          \resumeItemListEnd
+          ((* if not loop.last *))
+          \vspace{-15pt}
+          ((* endif *))
+    ((* endfor *))
+    \resumeSubHeadingListEnd
+\vspace{8pt}
+
+\section{Certification}
+  \resumeSubHeadingListStart
+  ((* for cert in certifications *))
+    \resumeSubheading
+      {(((cert.name))) -- (((cert.issuer)))}{(((cert.date)))}{(((cert.instructor_line)))}{}
+  ((* endfor *))
+  \resumeSubHeadingListEnd
+
+\end{document}
