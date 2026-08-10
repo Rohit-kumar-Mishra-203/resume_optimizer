@@ -10,7 +10,7 @@ from app.graph.build_graph import run_optimization_loop
 # Jobs below this quick-score aren't worth spending the full critique/edit
 # loop's LLM calls on - this is the funnel that keeps the pipeline
 # affordable even when the combined sources return many matches.
-PREFILTER_THRESHOLD = 55.0
+PREFILTER_THRESHOLD = 60.0
 
 
 def _is_rate_limit_error(e: Exception) -> bool:
