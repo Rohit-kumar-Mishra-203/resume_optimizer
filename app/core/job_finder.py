@@ -10,7 +10,14 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (personal resume tool; contact: you@exampl
 
 
 def _matches(text: str, keywords_lower: List[str]) -> bool:
-    return any(kw in text.lower() for kw in keywords_lower)
+    # Normalize hyphens to spaces before comparing - job board categories/tags
+    # are frequently hyphenated (e.g. "Machine-Learning", "AI-Engineering"),
+    # while our search keywords use spaces ("machine learning"). Without this,
+    # a plain substring check silently misses nearly every category-based
+    # match, since "machine learning" never appears literally inside
+    # "machine-learning" as a substring.
+    normalized = text.lower().replace("-", " ").replace("_", " ")
+    return any(kw in normalized for kw in keywords_lower)
 
 
 # ---------- No-key sources ----------
