@@ -23,7 +23,7 @@ def _is_rate_limit_error(e: Exception) -> bool:
 def run_discovery_pipeline(
     facts: ResumeFacts,
     max_jobs_to_scan: int = 50,
-    target_score: float = 93.0,
+    target_score: float = 95.0,
 ) -> List[Dict]:
     """
     Full pipeline:
