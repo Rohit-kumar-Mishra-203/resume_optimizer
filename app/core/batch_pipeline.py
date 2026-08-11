@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from typing import List, Dict
 from app.core.schema import ResumeFacts
 from app.core.domain_detector import detect_search_keywords
@@ -11,6 +13,7 @@ from app.graph.build_graph import run_optimization_loop
 # loop's LLM calls on - this is the funnel that keeps the pipeline
 # affordable even when the combined sources return many matches.
 PREFILTER_THRESHOLD = 60.0
+CHECKPOINT_PATH = Path("data/discovery_checkpoint.json")
 
 
 def _is_rate_limit_error(e: Exception) -> bool:
@@ -20,29 +23,57 @@ def _is_rate_limit_error(e: Exception) -> bool:
     return "rate_limit" in msg or "429" in msg or "quota" in msg
 
 
+def _job_key(job: Dict) -> str:
+    return f"{job['title'].strip().lower()}::{job['company'].strip().lower()}"
+
+
+def _load_checkpoint() -> Dict:
+    if CHECKPOINT_PATH.exists():
+        return json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
+    return {"processed_keys": [], "results": []}
+
+
+def _save_checkpoint(checkpoint: Dict) -> None:
+    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CHECKPOINT_PATH.write_text(json.dumps(checkpoint, indent=2), encoding="utf-8")
+
+
 def run_discovery_pipeline(
     facts: ResumeFacts,
     max_jobs_to_scan: int = 50,
-    target_score: float = 95.0,
+    target_score: float = 93.0,
+    resume_from_checkpoint: bool = True,
 ) -> List[Dict]:
     """
     Full pipeline:
     1. Detect search keywords from the resume
-    2. Fetch matching jobs from RemoteOK, Himalayas, and Remotive
+    2. Fetch matching jobs from all configured sources
     3. Quick-score every job (cheap, no critique/edit LLM calls)
     4. Fully tailor (score -> critique -> edit loop -> PDF) only jobs that
        clear PREFILTER_THRESHOLD
-    Stops gracefully and returns whatever was gathered so far if Groq's
-    daily quota runs out mid-batch, instead of crashing and losing everything.
+    Saves progress after every job, so if quota runs out mid-batch,
+    rerunning resumes exactly where it left off instead of starting over.
     """
+    checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
+    processed_keys = set(checkpoint["processed_keys"])
+    results = checkpoint["results"]
+
     keywords = detect_search_keywords(facts)
     jobs = fetch_all_jobs(keywords, max_results=max_jobs_to_scan)
 
-    results = []
     quota_exhausted = False
 
-    for job in jobs:
+    print(f"\nScanning {len(jobs)} jobs found...")
+    for idx, job in enumerate(jobs, 1):
+        key = _job_key(job)
+        if key in processed_keys:
+            print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']} - already processed, skipping")
+            continue
+
+        print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']}...")
+
         if not job["description"]:
+            processed_keys.add(key)
             continue
 
         try:
@@ -56,6 +87,8 @@ def run_discovery_pipeline(
                 "source": job.get("source", ""), "location": job.get("location", ""),
                 "quick_score": None, "error": f"JD parsing failed: {e}", "tailored": False,
             })
+            processed_keys.add(key)
+            _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
             continue
 
         try:
@@ -66,6 +99,8 @@ def run_discovery_pipeline(
                 "source": job.get("source", ""), "location": job.get("location", ""),
                 "quick_score": None, "error": f"Scoring failed: {e}", "tailored": False,
             })
+            processed_keys.add(key)
+            _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
             continue
 
         result = {
@@ -81,10 +116,14 @@ def run_discovery_pipeline(
                 if _is_rate_limit_error(e):
                     result["note"] = "Groq daily quota reached before full tailoring could run"
                     results.append(result)
+                    processed_keys.add(key)
+                    _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
                     quota_exhausted = True
                     break
                 result["error"] = f"Optimization loop failed: {e}"
                 results.append(result)
+                processed_keys.add(key)
+                _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
                 continue
 
             final_score = loop_result["score_history"][-1]
@@ -99,12 +138,20 @@ def run_discovery_pipeline(
                 result["pdf_filename"] = pdf_path.name
 
         results.append(result)
+        processed_keys.add(key)
+        _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
 
     if quota_exhausted:
-        print(f"\nGroq daily quota reached after processing {len(results)} jobs. "
-              f"Quota resets daily. Partial results returned below.")
+        print(f"\nGroq quota reached after processing {len(results)} jobs. "
+              f"Progress saved - rerun to continue where this left off.")
 
     return results
+
+
+def clear_checkpoint() -> None:
+    """Call this to start a completely fresh scan instead of resuming."""
+    if CHECKPOINT_PATH.exists():
+        CHECKPOINT_PATH.unlink()
 
 
 if __name__ == "__main__":
@@ -113,7 +160,7 @@ if __name__ == "__main__":
 
     results = run_discovery_pipeline(facts, max_jobs_to_scan=15)
 
-    print(f"\nScanned {len(results)} jobs\n")
+    print(f"\nScanned {len(results)} jobs total\n")
     for r in results:
         if r.get("quick_score") is None:
             print(f"[SKIPPED] {r['title']} @ {r['company']} - {r.get('error')}")

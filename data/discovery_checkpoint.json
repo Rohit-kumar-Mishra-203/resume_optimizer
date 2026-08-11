@@ -1,0 +1,49 @@
+{
+  "processed_keys": [
+    "senior independent ai engineer / architect::a.team",
+    "ai builders::brillio",
+    "principal ai engineer::mitratech",
+    "music audio expert - fully remote | upto $44/hr::mercor"
+  ],
+  "results": [
+    {
+      "title": "Music Audio Expert - Fully Remote | Upto $44/hr",
+      "company": "mercor",
+      "url": "https://himalayas.app/companies/mercor/jobs/music-audio-expert-fully-remote-upto-44-hr-3283315305",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 46.6,
+      "tailored": false
+    },
+    {
+      "title": "AI Builders",
+      "company": "Brillio",
+      "url": "https://himalayas.app/companies/brillio/jobs/ai-builders-226739103",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 48.5,
+      "tailored": false
+    },
+    {
+      "title": "Senior Independent AI Engineer / Architect",
+      "company": "A.Team",
+      "url": "https://remotive.com/remote-jobs/software-development/senior-independent-ai-engineer-architect-1919266",
+      "source": "Remotive",
+      "location": "Remote",
+      "quick_score": 77.8,
+      "tailored": false,
+      "final_score": 83.7,
+      "status": "plateaued"
+    },
+    {
+      "title": "Principal AI Engineer",
+      "company": "mitratech",
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/mitratech/principal-ai-engineer-366038",
+      "source": "Arbeitnow",
+      "location": "",
+      "quick_score": 65.8,
+      "tailored": false,
+      "note": "Groq daily quota reached before full tailoring could run"
+    }
+  ]
+}

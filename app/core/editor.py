@@ -74,3 +74,39 @@ def apply_revisions(facts: ResumeFacts, editor_output: EditorOutput) -> ResumeFa
                 b.text = revision_map[b.id]
 
     return updated
+
+if __name__ == "__main__":
+    from app.core.scorer import score_resume
+    from app.core.critic import generate_critique
+    from app.core.schema import JDRequirements
+
+    with open("data/resume_facts.json", "r", encoding="utf-8") as f:
+        facts = ResumeFacts.model_validate_json(f.read())
+
+    sample_jd = JDRequirements(
+        job_title="Machine Learning Engineer",
+        company=None,
+        seniority_level="Mid-Level",
+        must_have_skills=["Python", "PyTorch", "Transformer architectures", "LLM fine-tuning"],
+        nice_to_have_skills=["LangChain/LangGraph", "RAG systems"],
+        responsibilities=[
+            "Build and deploy production NLP pipelines",
+            "Collaborate with product team",
+            "Optimize model performance",
+        ],
+        tools_and_tech=["Python", "PyTorch", "LangChain", "LangGraph"],
+        raw_text="",
+    )
+
+    score_result = score_resume(sample_jd, facts)
+    critique = generate_critique(sample_jd, facts, score_result)
+    editor_output = generate_revisions(facts, critique)
+
+    print("--- Revisions ---")
+    print(editor_output.model_dump_json(indent=2))
+
+    updated_facts = apply_revisions(facts, editor_output)
+
+    new_score = score_resume(sample_jd, updated_facts)
+    print(f"\nOriginal score: {score_result['overall_score']}")
+    print(f"New score:      {new_score['overall_score']}")

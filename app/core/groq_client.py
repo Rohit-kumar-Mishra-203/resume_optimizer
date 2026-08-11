@@ -23,6 +23,9 @@ def _get_llm(key_index: int, model: str) -> ChatGroq:
         _llm_cache[cache_key] = ChatGroq(
             model=model,
             api_key=cast(SecretStr, GROQ_KEYS[key_index]),
+            max_retries=0,  # fail fast on rate limits - let OUR rotation
+                             # handle it instantly instead of the client
+                             # silently retrying/waiting ~26s internally first
         )
     return _llm_cache[cache_key]
 

@@ -59,3 +59,29 @@ def generate_critique(jd: JDRequirements, facts: ResumeFacts, score_breakdown: d
         resume_bullets=_format_resume_bullets(facts),
     )
     return invoke_structured(ResumeCritique, prompt)
+
+if __name__ == "__main__":
+    from app.core.scorer import score_resume
+
+    with open("data/resume_facts.json", "r", encoding="utf-8") as f:
+        facts = ResumeFacts.model_validate_json(f.read())
+
+    sample_jd = JDRequirements(
+        job_title="Machine Learning Engineer",
+        company=None,
+        seniority_level="Mid-Level",
+        must_have_skills=["Python", "PyTorch", "Transformer architectures", "LLM fine-tuning"],
+        nice_to_have_skills=["LangChain/LangGraph", "RAG systems"],
+        responsibilities=[
+            "Build and deploy production NLP pipelines",
+            "Collaborate with product team",
+            "Optimize model performance",
+        ],
+        tools_and_tech=["Python", "PyTorch", "LangChain", "LangGraph"],
+        raw_text="",
+    )
+
+    score_result = score_resume(sample_jd, facts)
+    critique = generate_critique(sample_jd, facts, score_result)
+
+    print(critique.model_dump_json(indent=2))
