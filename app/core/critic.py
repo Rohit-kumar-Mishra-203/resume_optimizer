@@ -1,19 +1,6 @@
-import os
 import json
-from typing import cast
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from pydantic import SecretStr
 from app.core.schema import ResumeFacts, JDRequirements, ResumeCritique
-
-load_dotenv()
-
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=cast(SecretStr, os.getenv("GROQ_API_KEY")),
-)
-
-structured_llm = llm.with_structured_output(ResumeCritique, method="json_mode")
+from app.core.groq_client import invoke_structured
 
 CRITIQUE_PROMPT = """You are a career coach reviewing how well a resume matches a job description,
 using a scoring breakdown that has already been computed.
@@ -71,5 +58,4 @@ def generate_critique(jd: JDRequirements, facts: ResumeFacts, score_breakdown: d
         score_breakdown=score_breakdown,
         resume_bullets=_format_resume_bullets(facts),
     )
-    result = cast(ResumeCritique, structured_llm.invoke(prompt))
-    return result
+    return invoke_structured(ResumeCritique, prompt)

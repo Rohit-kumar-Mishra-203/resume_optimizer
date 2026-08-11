@@ -1,20 +1,8 @@
-import os
 import json
 import copy
-from typing import cast, List, Dict
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from pydantic import SecretStr
+from typing import List, Dict
 from app.core.schema import ResumeFacts, ResumeCritique, CritiqueItem, EditorOutput
-
-load_dotenv()
-
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=cast(SecretStr, os.getenv("GROQ_API_KEY")),
-)
-
-structured_llm = llm.with_structured_output(EditorOutput, method="json_mode")
+from app.core.groq_client import invoke_structured
 
 EDITOR_PROMPT = """You are revising specific resume bullet points based on feedback,
 to better match a job description - WITHOUT ever inventing new facts.
@@ -69,8 +57,7 @@ def generate_revisions(facts: ResumeFacts, critique: ResumeCritique) -> EditorOu
     schema_json = json.dumps(EditorOutput.model_json_schema(), indent=2)
     bullets_text = _format_bullets_for_editing(facts, actionable_items)
     prompt = EDITOR_PROMPT.format(schema=schema_json, bullets_to_revise=bullets_text)
-    result = cast(EditorOutput, structured_llm.invoke(prompt))
-    return result
+    return invoke_structured(EditorOutput, prompt)
 
 
 def apply_revisions(facts: ResumeFacts, editor_output: EditorOutput) -> ResumeFacts:

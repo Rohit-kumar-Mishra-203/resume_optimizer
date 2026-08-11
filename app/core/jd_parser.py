@@ -1,19 +1,5 @@
-import os
-import json
-from typing import cast
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
-from pydantic import SecretStr
 from app.core.schema import JDRequirements
-
-load_dotenv()
-
-llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=cast(SecretStr, os.getenv("GROQ_API_KEY")),
-)
-
-structured_llm = llm.with_structured_output(JDRequirements, method="json_mode")
+from app.core.groq_client import invoke_structured
 
 EXTRACTION_PROMPT = """You are extracting structured requirements from a job description.
 
@@ -41,9 +27,10 @@ Job description:
 
 
 def parse_jd(jd_text: str) -> JDRequirements:
+    import json
     schema_json = json.dumps(JDRequirements.model_json_schema(), indent=2)
     prompt = EXTRACTION_PROMPT.format(schema=schema_json, jd_text=jd_text)
-    result = cast(JDRequirements, structured_llm.invoke(prompt))
+    result = invoke_structured(JDRequirements, prompt)
     result.raw_text = jd_text
     return result
 
