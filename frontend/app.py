@@ -100,7 +100,7 @@ st.divider()
 
 # ---------- Step 3: Automatic job discovery ----------
 st.subheader("Step 3 — Or, find jobs automatically")
-st.caption("Scans RemoteOK, Himalayas, and Remotive for roles matching your resume, "
+st.caption("Scans your configured job platforms for roles matching your resume, "
            "scores every match, and fully tailors resumes for the ones that clear "
            "your target score.")
 
@@ -132,6 +132,14 @@ if st.session_state.get("discovery_results"):
     if any(r.get("note") for r in disc_results):
         st.warning("Groq's daily quota was reached partway through - results below are partial. "
                     "Try again after the quota resets to scan more.")
+
+    # Fetch applied-jobs list ONCE for this render, not per-job-card
+    try:
+        applied_res = requests.get(f"{API_BASE}/applied-jobs")
+        applied_list = applied_res.json().get("applied_jobs", []) if applied_res.ok else []
+    except Exception:
+        applied_list = []
+    applied_keys = {(a["title"], a["company"]) for a in applied_list}
 
     for r in sorted(disc_results, key=lambda x: x.get("quick_score") or 0, reverse=True):
         with st.container(border=True):
@@ -168,3 +176,46 @@ if st.session_state.get("discovery_results"):
                     )
             elif r.get("final_score") is not None:
                 st.caption(f"Tailored attempt reached {r['final_score']} - below target, not saved as final PDF")
+
+            # Applied checkbox - persists to data/applied_jobs.json via backend
+            already_applied = (r["title"], r["company"]) in applied_keys
+            checkbox_key = f"applied_{r['title']}_{r['company']}"
+            applied_checked = st.checkbox("Applied to this job", value=already_applied, key=checkbox_key)
+
+            if applied_checked and not already_applied:
+                requests.post(f"{API_BASE}/mark-applied", json={
+                    "title": r["title"], "company": r["company"],
+                    "url": r.get("url", ""), "source": r.get("source", ""),
+                })
+                st.rerun()
+            elif not applied_checked and already_applied:
+                requests.post(f"{API_BASE}/unmark-applied", json={
+                    "title": r["title"], "company": r["company"], "url": "", "source": "",
+                })
+                st.rerun()
+
+st.divider()
+
+# ---------- Application History ----------
+st.subheader("Application History")
+
+history_res = requests.get(f"{API_BASE}/applied-jobs")
+if history_res.ok:
+    applied = history_res.json().get("applied_jobs", [])
+    if not applied:
+        st.caption("No jobs marked as applied yet.")
+    else:
+        st.caption(f"{len(applied)} jobs applied to so far")
+        for job in applied:
+            with st.container(border=True):
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**{job['title']}** — {job['company']}")
+                    if job.get("source"):
+                        st.caption(job["source"])
+                    if job.get("url"):
+                        st.caption(job["url"])
+                with col2:
+                    st.caption(f"Applied: {job['date_applied']}")
+else:
+    st.caption("Could not load application history - is the backend running?")

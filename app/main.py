@@ -11,6 +11,8 @@ from app.core.jd_parser import parse_jd
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
 from app.core.batch_pipeline import run_discovery_pipeline
+from app.core.applied_tracker import mark_applied, unmark_applied, get_applied_jobs
+
 
 app = FastAPI(title="Resume Optimizer API")
 
@@ -45,6 +47,29 @@ class OptimizeResponse(BaseModel):
 class DiscoverRequest(BaseModel):
     max_jobs_to_scan: int = 30
     target_score: float = 93.0
+    
+class AppliedRequest(BaseModel):
+    title: str
+    company: str
+    url: str = ""
+    source: str = ""
+    
+    
+@app.post("/mark-applied")
+async def mark_applied_endpoint(request: AppliedRequest):
+    mark_applied(request.title, request.company, request.url, request.source)
+    return {"message": "Marked as applied"}
+
+
+@app.post("/unmark-applied")
+async def unmark_applied_endpoint(request: AppliedRequest):
+    unmark_applied(request.title, request.company)
+    return {"message": "Unmarked"}
+
+
+@app.get("/applied-jobs")
+async def applied_jobs_endpoint():
+    return {"applied_jobs": get_applied_jobs()}        
 
 
 @app.post("/upload-resume")
