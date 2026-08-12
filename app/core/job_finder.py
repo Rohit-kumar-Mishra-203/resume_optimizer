@@ -176,6 +176,74 @@ def fetch_arbeitnow_jobs(keywords: List[str], max_results: int = 50) -> List[Dic
             break
     return matched
 
+def fetch_jobicy_jobs(keywords: List[str], max_results: int = 50) -> List[Dict]:
+    """Free, no auth. Remote jobs, tech-leaning."""
+    try:
+        resp = requests.get(
+            "https://jobicy.com/api/v2/remote-jobs",
+            params={"count": 50},
+            headers=HEADERS,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        raw = resp.json().get("jobs", [])
+    except Exception as e:
+        print(f"[Jobicy] fetch failed: {e}")
+        return []
+
+    keywords_lower = [k.lower() for k in keywords]
+    matched = []
+    for job in raw:
+        title = job.get("jobTitle", "")
+        company = job.get("companyName", "")
+        tags = " ".join(job.get("jobIndustry", []) if isinstance(job.get("jobIndustry"), list) else [])
+        searchable = f"{title} {company} {tags}"
+        if _matches(searchable, keywords_lower):
+            matched.append({
+                "title": title or "Unknown role",
+                "company": company or "Unknown company",
+                "url": job.get("url", ""),
+                "description": job.get("jobExcerpt", job.get("jobDescription", "")),
+                "location": "Remote",
+                "source": "Jobicy",
+            })
+        if len(matched) >= max_results:
+            break
+    return matched
+
+
+def fetch_findwork_jobs(keywords: List[str], max_results: int = 50) -> List[Dict]:
+    """Free with registration. Tech-focused job listings."""
+    api_key = os.getenv("FINDWORK_API_KEY")
+    if not api_key:
+        print("[Findwork] Skipped - FINDWORK_API_KEY not set in .env")
+        return []
+
+    matched = []
+    for kw in keywords[:3]:
+        try:
+            resp = requests.get(
+                "https://findwork.dev/api/jobs/",
+                params={"search": kw},
+                headers={**HEADERS, "Authorization": f"Token {api_key}"},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            for job in resp.json().get("results", []):
+                matched.append({
+                    "title": job.get("role", "Unknown role"),
+                    "company": job.get("company_name", "Unknown company"),
+                    "url": job.get("url", ""),
+                    "description": job.get("text", ""),
+                    "location": "Remote" if job.get("remote") else job.get("location", "Unknown"),
+                    "source": "Findwork",
+                })
+        except Exception as e:
+            print(f"[Findwork] fetch failed for '{kw}': {e}")
+        if len(matched) >= max_results:
+            break
+    return matched[:max_results]
+
 
 def fetch_weworkremotely_jobs(keywords: List[str], max_results: int = 50) -> List[Dict]:
     """
@@ -312,6 +380,8 @@ def fetch_all_jobs(keywords: List[str], max_results: int = 100) -> List[Dict]:
     all_jobs += fetch_weworkremotely_jobs(keywords, max_results=max_results)
     all_jobs += fetch_jooble_jobs(keywords, max_results=max_results)
     all_jobs += fetch_careerjet_jobs(keywords, max_results=max_results)
+    all_jobs += fetch_jobicy_jobs(keywords, max_results=max_results)
+    all_jobs += fetch_findwork_jobs(keywords, max_results=max_results)
 
     return _dedupe(all_jobs)[:max_results]
 
