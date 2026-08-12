@@ -21,7 +21,7 @@ class SearchKeywords(BaseModel):
 structured_llm = llm.with_structured_output(SearchKeywords)
 
 PROMPT = """Based on this candidate's resume summary, roles, and skills, generate
-3-5 job title search terms that would find genuinely relevant open roles for them.
+100 job title search terms that would find genuinely relevant open roles for them.
 
 Use real, common job title phrasing (e.g. "Machine Learning Engineer", not
 "AI Wizard"). Base this only on what's actually in their background below -
@@ -36,9 +36,11 @@ Top skills: {skills}
 
 
 def detect_search_keywords(facts: ResumeFacts) -> List[str]:
-    roles = ", ".join(exp.role for exp in facts.experience[:3])
+    #roles = ", ".join(exp.role for exp in facts.experience[:3])
+    roles = ", ".join(exp.role for exp in facts.experience)
     skills = ", ".join(
-        item for cat in facts.skills[:4] for item in cat.items[:5]
+        #item for cat in facts.skills[:4] for item in cat.items[:5]
+        item for cat in facts.skills for item in cat.items
     )
     prompt = PROMPT.format(summary=facts.summary or "", roles=roles, skills=skills)
     result = cast(SearchKeywords, structured_llm.invoke(prompt))

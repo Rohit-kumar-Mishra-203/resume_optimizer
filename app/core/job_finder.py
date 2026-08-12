@@ -51,7 +51,7 @@ def fetch_remoteok_jobs(keywords: List[str], max_results: int = 100) -> List[Dic
     return matched
 
 
-def fetch_himalayas_jobs(keywords: List[str], max_results: int = 20) -> List[Dict]:
+def fetch_himalayas_jobs(keywords: List[str], max_results: int = 100) -> List[Dict]:
     """
     Himalayas caps each request at 20 jobs, so we paginate using the
     `offset` param to gather more. Matching now checks categories and
@@ -63,7 +63,7 @@ def fetch_himalayas_jobs(keywords: List[str], max_results: int = 20) -> List[Dic
     matched = []
     offset = 0
     page_size = 20
-    max_pages = 5  # cap pagination depth - avoids hammering Himalayas into a 429
+    max_pages = 50  # cap pagination depth - avoids hammering Himalayas into a 429
 
     for _ in range(max_pages):
         if len(matched) >= max_results:

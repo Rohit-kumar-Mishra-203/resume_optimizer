@@ -1,9 +1,12 @@
 {
   "processed_keys": [
+    "full stack ai engineer::reveleer",
     "senior independent ai engineer / architect::a.team",
+    "machine learning engineer, cx intelligence::coinbase",
+    "music audio expert - fully remote | upto $44/hr::mercor",
+    "senior ai engineer::lemon.io",
     "ai builders::brillio",
-    "principal ai engineer::mitratech",
-    "music audio expert - fully remote | upto $44/hr::mercor"
+    "principal ai engineer::mitratech"
   ],
   "results": [
     {
@@ -44,6 +47,39 @@
       "quick_score": 65.8,
       "tailored": false,
       "note": "Groq daily quota reached before full tailoring could run"
+    },
+    {
+      "title": "Senior AI Engineer",
+      "company": "Lemon.io",
+      "url": "https://weworkremotely.com/remote-jobs/lemon-io-senior-ai-engineer-4",
+      "source": "WeWorkRemotely",
+      "location": "Remote",
+      "quick_score": 65.4,
+      "tailored": false,
+      "final_score": 64.8,
+      "status": "plateaued"
+    },
+    {
+      "title": "Machine Learning Engineer, CX Intelligence",
+      "company": "Coinbase",
+      "url": "https://weworkremotely.com/remote-jobs/coinbase-machine-learning-engineer-cx-intelligence",
+      "source": "WeWorkRemotely",
+      "location": "Remote",
+      "quick_score": 73.3,
+      "tailored": false,
+      "final_score": 72.9,
+      "status": "plateaued"
+    },
+    {
+      "title": "Full Stack AI Engineer",
+      "company": "Reveleer",
+      "url": "https://weworkremotely.com/remote-jobs/reveleer-full-stack-ai-engineer",
+      "source": "WeWorkRemotely",
+      "location": "Remote",
+      "quick_score": 68.6,
+      "tailored": false,
+      "final_score": 69.4,
+      "status": "plateaued"
     }
   ]
 }

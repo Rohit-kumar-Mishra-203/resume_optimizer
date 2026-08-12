@@ -1,13 +1,22 @@
-import json
 import copy
 from typing import List, Dict
 from app.core.schema import ResumeFacts, ResumeCritique, CritiqueItem, EditorOutput
 from app.core.groq_client import invoke_structured
 
+COMPACT_SCHEMA_EXAMPLE = """{
+  "revisions": [
+    {
+      "bullet_id": "string - must match a real bullet id exactly",
+      "revised_text": "string - the rewritten bullet",
+      "justification": "string - which part of the original grounds this"
+    }
+  ]
+}"""
+
 EDITOR_PROMPT = """You are revising specific resume bullet points based on feedback,
 to better match a job description - WITHOUT ever inventing new facts.
 
-Respond with ONLY a valid JSON object matching this schema:
+Respond with ONLY a valid JSON object matching this exact shape:
 
 {schema}
 
@@ -19,6 +28,7 @@ CRITICAL RULES:
    as close as honestly possible without fabricating, note the limitation.
 4. Keep each revised bullet a similar length to the original.
 5. justification must state which part of the ORIGINAL bullet grounds it.
+6. Be concise - no extra whitespace or repeated content.
 
 Bullets to revise:
 {bullets_to_revise}
@@ -54,9 +64,8 @@ def generate_revisions(facts: ResumeFacts, critique: ResumeCritique) -> EditorOu
     if not actionable_items:
         return EditorOutput(revisions=[])
 
-    schema_json = json.dumps(EditorOutput.model_json_schema(), indent=2)
     bullets_text = _format_bullets_for_editing(facts, actionable_items)
-    prompt = EDITOR_PROMPT.format(schema=schema_json, bullets_to_revise=bullets_text)
+    prompt = EDITOR_PROMPT.format(schema=COMPACT_SCHEMA_EXAMPLE, bullets_to_revise=bullets_text)
     return invoke_structured(EditorOutput, prompt)
 
 
@@ -74,39 +83,3 @@ def apply_revisions(facts: ResumeFacts, editor_output: EditorOutput) -> ResumeFa
                 b.text = revision_map[b.id]
 
     return updated
-
-if __name__ == "__main__":
-    from app.core.scorer import score_resume
-    from app.core.critic import generate_critique
-    from app.core.schema import JDRequirements
-
-    with open("data/resume_facts.json", "r", encoding="utf-8") as f:
-        facts = ResumeFacts.model_validate_json(f.read())
-
-    sample_jd = JDRequirements(
-        job_title="Machine Learning Engineer",
-        company=None,
-        seniority_level="Mid-Level",
-        must_have_skills=["Python", "PyTorch", "Transformer architectures", "LLM fine-tuning"],
-        nice_to_have_skills=["LangChain/LangGraph", "RAG systems"],
-        responsibilities=[
-            "Build and deploy production NLP pipelines",
-            "Collaborate with product team",
-            "Optimize model performance",
-        ],
-        tools_and_tech=["Python", "PyTorch", "LangChain", "LangGraph"],
-        raw_text="",
-    )
-
-    score_result = score_resume(sample_jd, facts)
-    critique = generate_critique(sample_jd, facts, score_result)
-    editor_output = generate_revisions(facts, critique)
-
-    print("--- Revisions ---")
-    print(editor_output.model_dump_json(indent=2))
-
-    updated_facts = apply_revisions(facts, editor_output)
-
-    new_score = score_resume(sample_jd, updated_facts)
-    print(f"\nOriginal score: {score_result['overall_score']}")
-    print(f"New score:      {new_score['overall_score']}")

@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from typing import List, Dict
 from app.core.schema import ResumeFacts
@@ -9,16 +10,14 @@ from app.core.scorer import score_resume
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
 
-# Jobs below this quick-score aren't worth spending the full critique/edit
-# loop's LLM calls on - this is the funnel that keeps the pipeline
-# affordable even when the combined sources return many matches.
 PREFILTER_THRESHOLD = 60.0
 CHECKPOINT_PATH = Path("data/discovery_checkpoint.json")
 
+WAIT_SECONDS_BETWEEN_RETRIES = 600  # 10 minutes
+MAX_WAIT_HOURS = 26  # safety cap so it can't loop forever if something's wrong
+
 
 def _is_rate_limit_error(e: Exception) -> bool:
-    """Detects a quota/rate-limit failure from Groq regardless of exact
-    exception type, since langchain wraps the underlying groq error."""
     msg = str(e).lower()
     return "rate_limit" in msg or "429" in msg or "quota" in msg
 
@@ -38,6 +37,36 @@ def _save_checkpoint(checkpoint: Dict) -> None:
     CHECKPOINT_PATH.write_text(json.dumps(checkpoint, indent=2), encoding="utf-8")
 
 
+def _call_with_quota_retry(fn, *args, **kwargs):
+    """
+    Calls fn(*args, **kwargs). If it fails on a rate limit (after our
+    key-rotation in groq_client already tried every configured key), waits
+    and retries automatically instead of giving up - so a single run of
+    this pipeline can push through a full daily quota reset on its own,
+    with no manual rerun needed. Capped at MAX_WAIT_HOURS as a safety net.
+    """
+    total_waited = 0
+    max_wait_seconds = MAX_WAIT_HOURS * 3600
+
+    while True:
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            if not _is_rate_limit_error(e):
+                raise  # a real bug, not a quota issue - surface it immediately
+
+            if total_waited >= max_wait_seconds:
+                raise RuntimeError(
+                    f"Still rate-limited after waiting {MAX_WAIT_HOURS} hours - giving up."
+                ) from e
+
+            mins = WAIT_SECONDS_BETWEEN_RETRIES // 60
+            print(f"  Quota exhausted on all keys. Waiting {mins} minutes before retrying "
+                  f"(waited {total_waited // 60} min so far)...")
+            time.sleep(WAIT_SECONDS_BETWEEN_RETRIES)
+            total_waited += WAIT_SECONDS_BETWEEN_RETRIES
+
+
 def run_discovery_pipeline(
     facts: ResumeFacts,
     max_jobs_to_scan: int = 50,
@@ -45,14 +74,10 @@ def run_discovery_pipeline(
     resume_from_checkpoint: bool = True,
 ) -> List[Dict]:
     """
-    Full pipeline:
-    1. Detect search keywords from the resume
-    2. Fetch matching jobs from all configured sources
-    3. Quick-score every job (cheap, no critique/edit LLM calls)
-    4. Fully tailor (score -> critique -> edit loop -> PDF) only jobs that
-       clear PREFILTER_THRESHOLD
-    Saves progress after every job, so if quota runs out mid-batch,
-    rerunning resumes exactly where it left off instead of starting over.
+    Runs the full discovery pipeline to completion in ONE call - if quota
+    runs out, it automatically waits and retries rather than stopping, so
+    you don't need to manually rerun this. Checkpointing still protects
+    against a hard interruption (e.g. closing the terminal) separately.
     """
     checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
     processed_keys = set(checkpoint["processed_keys"])
@@ -60,8 +85,6 @@ def run_discovery_pipeline(
 
     keywords = detect_search_keywords(facts)
     jobs = fetch_all_jobs(keywords, max_results=max_jobs_to_scan)
-
-    quota_exhausted = False
 
     print(f"\nScanning {len(jobs)} jobs found...")
     for idx, job in enumerate(jobs, 1):
@@ -77,11 +100,8 @@ def run_discovery_pipeline(
             continue
 
         try:
-            jd = parse_jd(job["description"])
+            jd = _call_with_quota_retry(parse_jd, job["description"])
         except Exception as e:
-            if _is_rate_limit_error(e):
-                quota_exhausted = True
-                break
             results.append({
                 "title": job["title"], "company": job["company"], "url": job["url"],
                 "source": job.get("source", ""), "location": job.get("location", ""),
@@ -111,15 +131,10 @@ def run_discovery_pipeline(
 
         if quick_score >= PREFILTER_THRESHOLD:
             try:
-                loop_result = run_optimization_loop(jd, facts, target_score=target_score)
+                loop_result = _call_with_quota_retry(
+                    run_optimization_loop, jd, facts, target_score=target_score
+                )
             except Exception as e:
-                if _is_rate_limit_error(e):
-                    result["note"] = "Groq daily quota reached before full tailoring could run"
-                    results.append(result)
-                    processed_keys.add(key)
-                    _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
-                    quota_exhausted = True
-                    break
                 result["error"] = f"Optimization loop failed: {e}"
                 results.append(result)
                 processed_keys.add(key)
@@ -141,15 +156,11 @@ def run_discovery_pipeline(
         processed_keys.add(key)
         _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
 
-    if quota_exhausted:
-        print(f"\nGroq quota reached after processing {len(results)} jobs. "
-              f"Progress saved - rerun to continue where this left off.")
-
+    print(f"\nDone. Processed {len(results)} jobs total.")
     return results
 
 
 def clear_checkpoint() -> None:
-    """Call this to start a completely fresh scan instead of resuming."""
     if CHECKPOINT_PATH.exists():
         CHECKPOINT_PATH.unlink()
 
@@ -167,7 +178,5 @@ if __name__ == "__main__":
         elif r["tailored"]:
             print(f"[TAILORED] {r['title']} @ {r['company']} - "
                   f"quick={r['quick_score']} final={r.get('final_score')} -> {r['pdf_filename']}")
-        elif r.get("note"):
-            print(f"[QUOTA HIT] {r['title']} @ {r['company']} - quick_score={r['quick_score']} - {r['note']}")
         else:
             print(f"[SCANNED]  {r['title']} @ {r['company']} - quick_score={r['quick_score']}")
