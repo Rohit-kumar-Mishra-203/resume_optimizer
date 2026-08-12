@@ -74,14 +74,15 @@ def run_discovery_pipeline(
     resume_from_checkpoint: bool = True,
 ) -> List[Dict]:
     """
-    Runs the full discovery pipeline to completion in ONE call - if quota
-    runs out, it automatically waits and retries rather than stopping, so
-    you don't need to manually rerun this. Checkpointing still protects
-    against a hard interruption (e.g. closing the terminal) separately.
+    Checkpointing here serves permanent memory across days, not just
+    resuming an interrupted run: any job ever processed (in any previous
+    run, any previous day) is skipped and never shown again. Only jobs
+    that are genuinely new since your last run are returned.
     """
     checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
     processed_keys = set(checkpoint["processed_keys"])
-    results = checkpoint["results"]
+    all_time_results = checkpoint["results"]
+    new_results = []  # only what's found THIS run
 
     keywords = detect_search_keywords(facts)
     jobs = fetch_all_jobs(keywords, max_results=max_jobs_to_scan)
@@ -90,7 +91,7 @@ def run_discovery_pipeline(
     for idx, job in enumerate(jobs, 1):
         key = _job_key(job)
         if key in processed_keys:
-            print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']} - already processed, skipping")
+            print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']} - already seen, skipping")
             continue
 
         print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']}...")
@@ -102,25 +103,29 @@ def run_discovery_pipeline(
         try:
             jd = _call_with_quota_retry(parse_jd, job["description"])
         except Exception as e:
-            results.append({
+            result = {
                 "title": job["title"], "company": job["company"], "url": job["url"],
                 "source": job.get("source", ""), "location": job.get("location", ""),
                 "quick_score": None, "error": f"JD parsing failed: {e}", "tailored": False,
-            })
+            }
+            new_results.append(result)
+            all_time_results.append(result)
             processed_keys.add(key)
-            _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
+            _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
             continue
 
         try:
             quick_score = score_resume(jd, facts)["overall_score"]
         except Exception as e:
-            results.append({
+            result = {
                 "title": job["title"], "company": job["company"], "url": job["url"],
                 "source": job.get("source", ""), "location": job.get("location", ""),
                 "quick_score": None, "error": f"Scoring failed: {e}", "tailored": False,
-            })
+            }
+            new_results.append(result)
+            all_time_results.append(result)
             processed_keys.add(key)
-            _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
+            _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
             continue
 
         result = {
@@ -136,9 +141,10 @@ def run_discovery_pipeline(
                 )
             except Exception as e:
                 result["error"] = f"Optimization loop failed: {e}"
-                results.append(result)
+                new_results.append(result)
+                all_time_results.append(result)
                 processed_keys.add(key)
-                _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
+                _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
                 continue
 
             final_score = loop_result["score_history"][-1]
@@ -152,12 +158,16 @@ def run_discovery_pipeline(
                 result["tailored"] = True
                 result["pdf_filename"] = pdf_path.name
 
-        results.append(result)
+        new_results.append(result)
+        all_time_results.append(result)
         processed_keys.add(key)
-        _save_checkpoint({"processed_keys": list(processed_keys), "results": results})
+        _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
 
-    print(f"\nDone. Processed {len(results)} jobs total.")
-    return results
+    print(f"\nDone. {len(new_results)} new jobs found this run "
+          f"({len(all_time_results)} total ever processed).")
+    return new_results
+   
+  
 
 
 def clear_checkpoint() -> None:
