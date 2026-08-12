@@ -196,7 +196,20 @@ if st.session_state.get("discovery_results"):
 
 st.divider()
 
-# ---------- Application History ----------
+# ---------- Personal Experiment Tracker ----------
+st.subheader("📊 One-Month Experiment")
+st.caption("Track whether tailored applications actually lead to interview calls.")
+
+summary_res = requests.get(f"{API_BASE}/experiment-summary", params={"days": 30})
+if summary_res.ok:
+    s = summary_res.json()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Applied (30d)", s["total_applied"])
+    c2.metric("Interviews", s["interviews"], delta=f"Goal: 5" if s["interviews"] < 5 else "Goal met ✅")
+    c3.metric("Rejected", s["rejected"])
+    c4.metric("Response rate", f"{s['response_rate']}%")
+
+st.divider()
 st.subheader("Application History")
 
 history_res = requests.get(f"{API_BASE}/applied-jobs")
@@ -205,7 +218,13 @@ if history_res.ok:
     if not applied:
         st.caption("No jobs marked as applied yet.")
     else:
-        st.caption(f"{len(applied)} jobs applied to so far")
+        status_labels = {
+            "applied": "📤 Applied",
+            "interview_scheduled": "🎯 Interview!",
+            "rejected": "❌ Rejected",
+            "no_response": "🔇 No response",
+            "offer": "🎉 Offer",
+        }
         for job in applied:
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
@@ -213,9 +232,20 @@ if history_res.ok:
                     st.markdown(f"**{job['title']}** — {job['company']}")
                     if job.get("source"):
                         st.caption(job["source"])
-                    if job.get("url"):
-                        st.caption(job["url"])
+                    if job.get("ats_score"):
+                        st.caption(f"ATS score at time of applying: {job['ats_score']}")
                 with col2:
                     st.caption(f"Applied: {job['date_applied']}")
-else:
-    st.caption("Could not load application history - is the backend running?")
+
+                current_status = job.get("status", "applied")
+                new_status = st.selectbox("Status",
+                    options=list(status_labels.keys()),
+                    format_func=lambda x: status_labels[x],
+                    index=list(status_labels.keys()).index(current_status),
+                    key=f"status_{job['title']}_{job['company']}",
+                )
+                if new_status != current_status:
+                    requests.post(f"{API_BASE}/update-application-status", json={
+                        "title": job["title"], "company": job["company"], "status": new_status,
+                    })
+                    st.rerun()

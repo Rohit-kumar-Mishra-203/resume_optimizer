@@ -11,7 +11,7 @@ from app.core.jd_parser import parse_jd
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
 from app.core.batch_pipeline import run_discovery_pipeline
-from app.core.applied_tracker import mark_applied, unmark_applied, get_applied_jobs
+from app.core.applied_tracker import mark_applied, unmark_applied, get_applied_jobs, update_status, get_experiment_summary
 
 
 app = FastAPI(title="Resume Optimizer API")
@@ -54,6 +54,24 @@ class AppliedRequest(BaseModel):
     url: str = ""
     source: str = ""
     
+class UpdateStatusRequest(BaseModel):
+    title: str
+    company: str
+    status: str
+    notes: str = ""    
+    
+@app.post("/update-application-status")
+async def update_status_endpoint(request: UpdateStatusRequest):
+    try:
+        update_status(request.title, request.company, request.status, request.notes)
+        return {"message": "Status updated"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/experiment-summary")
+async def experiment_summary_endpoint(days: int = 30):
+    return get_experiment_summary(days=days)    
     
 @app.post("/mark-applied")
 async def mark_applied_endpoint(request: AppliedRequest):
