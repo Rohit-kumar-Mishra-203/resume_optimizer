@@ -32,7 +32,7 @@ GENERATED_DIR = DATA_DIR / "generated"
 class OptimizeRequest(BaseModel):
     jd_text: str
     target_score: float = 93.0
-    max_iterations: int = 6
+    max_iterations: int = 10
 
 
 class OptimizeResponse(BaseModel):
