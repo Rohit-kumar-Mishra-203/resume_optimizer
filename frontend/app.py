@@ -238,9 +238,13 @@ if history_res.ok:
                     st.caption(f"Applied: {job['date_applied']}")
 
                 current_status = job.get("status", "applied")
-                new_status = st.selectbox("Status",
+                def _status_label(x: str) -> str:
+                    return status_labels[x: str]
+
+                new_status = st.selectbox(
+                    "Status",
                     options=list(status_labels.keys()),
-                    format_func=lambda x: status_labels[x],
+                    format_func=_status_label,
                     index=list(status_labels.keys()).index(current_status),
                     key=f"status_{job['title']}_{job['company']}",
                 )
