@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+from typing import cast
 
 API_BASE = "http://127.0.0.1:8000"
 
@@ -67,12 +68,12 @@ if st.session_state.get("result"):
 
     st.subheader("Result")
 
-    status_labels = {
+    status_display_labels = {
         "success": ("✅ Success", "success"),
         "plateaued": ("⚠️ Plateaued", "warning"),
         "max_iterations_reached": ("⚠️ Max iterations reached", "warning"),
     }
-    label, kind = status_labels.get(result["status"], (result["status"], "info"))
+    label, kind = status_display_labels.get(result["status"], (result["status"], "info"))
 
     m1, m2, m3 = st.columns(3)
     m1.metric("Final score", f"{result['final_score']} / 100")
@@ -127,13 +128,12 @@ if st.session_state.get("discovery_results"):
     disc_results = st.session_state["discovery_results"]
     tailored = [r for r in disc_results if r.get("tailored")]
 
-    st.markdown(f"**Scanned {len(disc_results)} jobs — {len(tailored)} fully tailored (93+ score)**")
+    st.markdown(f"**Found {len(disc_results)} new jobs this run — {len(tailored)} fully tailored (target score+)**")
 
     if any(r.get("note") for r in disc_results):
         st.warning("Groq's daily quota was reached partway through - results below are partial. "
                     "Try again after the quota resets to scan more.")
 
-    # Fetch applied-jobs list ONCE for this render, not per-job-card
     try:
         applied_res = requests.get(f"{API_BASE}/applied-jobs")
         applied_list = applied_res.json().get("applied_jobs", []) if applied_res.ok else []
@@ -177,7 +177,6 @@ if st.session_state.get("discovery_results"):
             elif r.get("final_score") is not None:
                 st.caption(f"Tailored attempt reached {r['final_score']} - below target, not saved as final PDF")
 
-            # Applied checkbox - persists to data/applied_jobs.json via backend
             already_applied = (r["title"], r["company"]) in applied_keys
             checkbox_key = f"applied_{r['title']}_{r['company']}"
             applied_checked = st.checkbox("Applied to this job", value=already_applied, key=checkbox_key)
@@ -186,6 +185,7 @@ if st.session_state.get("discovery_results"):
                 requests.post(f"{API_BASE}/mark-applied", json={
                     "title": r["title"], "company": r["company"],
                     "url": r.get("url", ""), "source": r.get("source", ""),
+                    "ats_score": r.get("final_score") or r.get("quick_score"),
                 })
                 st.rerun()
             elif not applied_checked and already_applied:
@@ -205,12 +205,25 @@ if summary_res.ok:
     s = summary_res.json()
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Applied (30d)", s["total_applied"])
-    c2.metric("Interviews", s["interviews"], delta=f"Goal: 5" if s["interviews"] < 5 else "Goal met ✅")
+    c2.metric("Interviews", s["interviews"], delta="Goal: 5" if s["interviews"] < 5 else "Goal met ✅")
     c3.metric("Rejected", s["rejected"])
     c4.metric("Response rate", f"{s['response_rate']}%")
 
 st.divider()
 st.subheader("Application History")
+
+status_labels: dict[str, str] = {
+    "applied": "📤 Applied",
+    "interview_scheduled": "🎯 Interview!",
+    "rejected": "❌ Rejected",
+    "no_response": "🔇 No response",
+    "offer": "🎉 Offer",
+}
+
+
+def _status_label(x: str) -> str:
+    return cast(str, status_labels[x])
+
 
 history_res = requests.get(f"{API_BASE}/applied-jobs")
 if history_res.ok:
@@ -218,13 +231,6 @@ if history_res.ok:
     if not applied:
         st.caption("No jobs marked as applied yet.")
     else:
-        status_labels = {
-            "applied": "📤 Applied",
-            "interview_scheduled": "🎯 Interview!",
-            "rejected": "❌ Rejected",
-            "no_response": "🔇 No response",
-            "offer": "🎉 Offer",
-        }
         for job in applied:
             with st.container(border=True):
                 col1, col2 = st.columns([3, 1])
@@ -238,9 +244,6 @@ if history_res.ok:
                     st.caption(f"Applied: {job['date_applied']}")
 
                 current_status = job.get("status", "applied")
-                def _status_label(x: str) -> str:
-                    return status_labels[x: str]
-
                 new_status = st.selectbox(
                     "Status",
                     options=list(status_labels.keys()),
@@ -253,3 +256,5 @@ if history_res.ok:
                         "title": job["title"], "company": job["company"], "status": new_status,
                     })
                     st.rerun()
+else:
+    st.caption("Could not load application history - is the backend running?")
