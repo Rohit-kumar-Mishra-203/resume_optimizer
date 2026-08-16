@@ -1,4 +1,6 @@
 import os
+import json
+import threading
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
@@ -10,9 +12,12 @@ from app.core.resume_parser import parse_resume
 from app.core.jd_parser import parse_jd
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
-from app.core.batch_pipeline import run_discovery_pipeline
-from app.core.applied_tracker import mark_applied, unmark_applied, get_applied_jobs, update_status, get_experiment_summary
-
+from app.core.batch_pipeline import (
+    run_discovery_pipeline, is_discovery_running, CHECKPOINT_PATH
+)
+from app.core.applied_tracker import (
+    mark_applied, unmark_applied, get_applied_jobs, update_status, get_experiment_summary
+)
 
 app = FastAPI(title="Resume Optimizer API")
 
@@ -32,7 +37,7 @@ GENERATED_DIR = DATA_DIR / "generated"
 class OptimizeRequest(BaseModel):
     jd_text: str
     target_score: float = 93.0
-    max_iterations: int = 10
+    max_iterations: int = 6
 
 
 class OptimizeResponse(BaseModel):
@@ -47,59 +52,27 @@ class OptimizeResponse(BaseModel):
 class DiscoverRequest(BaseModel):
     max_jobs_to_scan: int = 30
     target_score: float = 93.0
-    
+
+
 class AppliedRequest(BaseModel):
     title: str
     company: str
     url: str = ""
     source: str = ""
-    
+    ats_score: float | None = None
+
+
 class UpdateStatusRequest(BaseModel):
     title: str
     company: str
     status: str
-    notes: str = ""    
-    
-@app.post("/update-application-status")
-async def update_status_endpoint(request: UpdateStatusRequest):
-    try:
-        update_status(request.title, request.company, request.status, request.notes)
-        return {"message": "Status updated"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/experiment-summary")
-async def experiment_summary_endpoint(days: int = 30):
-    return get_experiment_summary(days=days)    
-    
-@app.post("/mark-applied")
-async def mark_applied_endpoint(request: AppliedRequest):
-    mark_applied(request.title, request.company, request.url, request.source)
-    return {"message": "Marked as applied"}
-
-
-@app.post("/unmark-applied")
-async def unmark_applied_endpoint(request: AppliedRequest):
-    unmark_applied(request.title, request.company)
-    return {"message": "Unmarked"}
-
-
-@app.get("/applied-jobs")
-async def applied_jobs_endpoint():
-    return {"applied_jobs": get_applied_jobs()}        
+    notes: str = ""
 
 
 @app.post("/upload-resume")
 async def upload_resume(file: UploadFile = File(...)):
-    """
-    One-time setup: accepts a .tex resume file, saves it, and parses it
-    into structured resume_facts.json - the source of truth for every
-    future optimization run.
-    """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     contents = await file.read()
-
     BASE_RESUME_PATH.write_bytes(contents)
 
     try:
@@ -108,7 +81,6 @@ async def upload_resume(file: UploadFile = File(...)):
         resume_text = contents.decode("latin-1")
 
     facts = parse_resume(resume_text)
-
     RESUME_FACTS_PATH.write_text(facts.model_dump_json(indent=2), encoding="utf-8")
 
     return {
@@ -121,25 +93,14 @@ async def upload_resume(file: UploadFile = File(...)):
 
 @app.post("/optimize", response_model=OptimizeResponse)
 async def optimize_resume(request: OptimizeRequest):
-    """
-    Main endpoint: takes a job description, runs the full score -> critique
-    -> edit loop against the stored resume_facts.json, then compiles the
-    final (possibly improved) resume into a real PDF.
-    """
     if not RESUME_FACTS_PATH.exists():
-        raise HTTPException(
-            status_code=400,
-            detail="No resume on file yet - call /upload-resume first.",
-        )
+        raise HTTPException(status_code=400, detail="No resume on file yet - call /upload-resume first.")
 
     facts = ResumeFacts.model_validate_json(RESUME_FACTS_PATH.read_text(encoding="utf-8"))
     jd = parse_jd(request.jd_text)
 
     result = run_optimization_loop(
-        jd,
-        facts,
-        target_score=request.target_score,
-        max_iterations=request.max_iterations,
+        jd, facts, target_score=request.target_score, max_iterations=request.max_iterations
     )
 
     tex_source = render_latex(result["facts"])
@@ -148,9 +109,7 @@ async def optimize_resume(request: OptimizeRequest):
 
     genuine_gaps = []
     if result["status"] == "plateaued" and result["critique"]:
-        genuine_gaps = [
-            item.description for item in result["critique"].items if item.is_genuine_gap
-        ]
+        genuine_gaps = [item.description for item in result["critique"].items if item.is_genuine_gap]
 
     return OptimizeResponse(
         status=result["status"],
@@ -162,37 +121,74 @@ async def optimize_resume(request: OptimizeRequest):
     )
 
 
-@app.post("/discover-and-optimize")
-async def discover_and_optimize(request: DiscoverRequest):
-    """
-    Automatic pipeline: detects your domain from your resume, searches
-    RemoteOK for matching jobs, quick-scores every match, and fully
-    tailors resumes (score -> critique -> edit loop -> PDF) for the
-    ones that clear the target score.
-    """
+@app.post("/start-discovery")
+async def start_discovery(request: DiscoverRequest):
+    """Starts discovery as a background thread so the frontend can poll
+    live progress instead of waiting on one long blocking HTTP request."""
     if not RESUME_FACTS_PATH.exists():
-        raise HTTPException(
-            status_code=400,
-            detail="No resume on file yet - call /upload-resume first.",
-        )
+        raise HTTPException(status_code=400, detail="No resume on file yet - call /upload-resume first.")
+    if is_discovery_running():
+        return {"message": "Discovery already running"}
 
     facts = ResumeFacts.model_validate_json(RESUME_FACTS_PATH.read_text(encoding="utf-8"))
-    results = run_discovery_pipeline(
-        facts,
-        max_jobs_to_scan=request.max_jobs_to_scan,
-        target_score=request.target_score,
-    )
-    return {"results": results}
+
+    def _run():
+        run_discovery_pipeline(
+            facts, max_jobs_to_scan=request.max_jobs_to_scan, target_score=request.target_score
+        )
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"message": "Discovery started"}
+
+
+@app.get("/discovery-progress")
+async def discovery_progress():
+    """Returns whatever discovery results exist right now, live, whether
+    or not a scan is still running in the background."""
+    results = []
+    if CHECKPOINT_PATH.exists():
+        checkpoint = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
+        results = checkpoint.get("results", [])
+    return {"results": results, "is_running": is_discovery_running()}
+
+
+@app.post("/mark-applied")
+async def mark_applied_endpoint(request: AppliedRequest):
+    mark_applied(request.title, request.company, request.url, request.source, request.ats_score)
+    return {"message": "Marked as applied"}
+
+
+@app.post("/unmark-applied")
+async def unmark_applied_endpoint(request: AppliedRequest):
+    unmark_applied(request.title, request.company)
+    return {"message": "Unmarked"}
+
+
+@app.get("/applied-jobs")
+async def applied_jobs_endpoint():
+    return {"applied_jobs": get_applied_jobs()}
+
+
+@app.post("/update-application-status")
+async def update_status_endpoint(request: UpdateStatusRequest):
+    try:
+        update_status(request.title, request.company, request.status, request.notes)
+        return {"message": "Status updated"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/experiment-summary")
+async def experiment_summary_endpoint(days: int = 30):
+    return get_experiment_summary(days=days)
 
 
 @app.get("/download/{filename}")
 async def download_pdf(filename: str):
-    """Serves a generated PDF for download by the frontend."""
     file_path = GENERATED_DIR / filename
 
     if not file_path.resolve().is_relative_to(GENERATED_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Invalid filename")
-
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 

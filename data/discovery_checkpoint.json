@@ -1,12 +1,56 @@
 {
   "processed_keys": [
-    "full stack ai engineer::reveleer",
-    "senior independent ai engineer / architect::a.team",
-    "machine learning engineer, cx intelligence::coinbase",
-    "music audio expert - fully remote | upto $44/hr::mercor",
+    "cloud data architect::bright vision technologies",
     "senior ai engineer::lemon.io",
+    "site observability engineer::bright vision technologies",
+    "profissional de sre/devops (devop/sre - infraestrutura)::zup",
+    "ai engineering intern::sanovio",
+    "ai solutions engineer/architect (uk, virtual, europe)::bcd travel",
+    "infrastructure lead::adm group",
+    "senior independent ai engineer / architect::a.team",
+    "mid-level big data developer::talan",
+    "software engineer ii golang::stone",
+    "machine learning engineer, cx intelligence::coinbase",
+    "associate data engineer::abacus insights",
+    "senior data scientist, ads::reddit",
+    "senior ai engineer::quantum",
+    "data analyst internship::connectprep",
+    "ai ops engineer - professional services::agiloft",
+    "graduate data engineer::quantum",
+    "senior engineer, boomi integration architect::wipfli",
+    "senior data engineer::lemon.io",
+    "senior software engineer, python::northbeam",
+    "music audio expert - fully remote | upto $44/hr::mercor",
+    "desenvolvimento java aws s\u00eanior | remota - 135341 (alphaville - barueri, br, 06.::gft",
+    "team lead data products & analytics (gn)::bikeleasing",
+    "principal ai process orchestrator::creative chaos",
     "ai builders::brillio",
-    "principal ai engineer::mitratech"
+    "senior python data scraping engineer (freelance)::mindrift",
+    "[job- 31069] senior  generative ai developer, brazil::ci&t",
+    "staff ai data scientist::beyondtrust",
+    "senior frontend engineer (vue), create:  repository management::gitlab",
+    "full stack data scientist::discovered",
+    "analista de observabilidade s\u00eanior - vaga afirmativa para mulheres::experian",
+    "principal ai engineer::mitratech",
+    "applied rl engineer::bright vision technologies",
+    "platform & devops engineer (m/w/d)::yoummday gmbh",
+    "[job -  31018] senior java developer, brazil::ci&t",
+    "sr. fullstack developer::ispace, inc.",
+    "senior back end developer::colab software",
+    "lead qa developer::algaecal",
+    "enterprise servicenow architect::bright vision technologies",
+    "network systems automation engineer::bright vision technologies",
+    "data engineer::ledgebrook",
+    "senior data product manager::next college student athlete (ncsa)",
+    "staff machine learning engineer::doma",
+    "software engineer iii mobile::stone",
+    "staff software engineer::evolve",
+    "pricing analyst::rws group",
+    "cloud engineer::firemind",
+    "ai software engineering teaching experts::tripleten",
+    "freelance full-stack web app developer::mindrift",
+    "senior cloud software engineer - efficiency engineering::clickhouse",
+    "full stack ai engineer::reveleer"
   ],
   "results": [
     {
@@ -80,6 +124,437 @@
       "tailored": false,
       "final_score": 69.4,
       "status": "plateaued"
+    },
+    {
+      "title": "Senior Data Engineer",
+      "company": "Lemon.io",
+      "url": "https://remoteOK.com/remote-jobs/remote-senior-data-engineer-lemon-io-1136594",
+      "source": "RemoteOK",
+      "location": "Remote",
+      "quick_score": 57.9,
+      "tailored": false
+    },
+    {
+      "title": "Desenvolvimento Java AWS S\u00eanior | Remota - 135341 (Alphaville - Barueri, BR, 06.",
+      "company": "gft",
+      "url": "https://himalayas.app/companies/gft/jobs/desenvolvimento-java-aws-senior-remota-135341-alphaville-barueri-br-06",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 61.5,
+      "tailored": false,
+      "final_score": 64.6,
+      "status": "plateaued"
+    },
+    {
+      "title": "Senior Data Product Manager",
+      "company": "Next College Student Athlete (NCSA)",
+      "url": "https://himalayas.app/companies/next-college-student-athlete-ncsa/jobs/senior-data-product-manager",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 71.8,
+      "tailored": false,
+      "final_score": 75.3,
+      "status": "plateaued"
+    },
+    {
+      "title": "Senior Data Scientist, Ads",
+      "company": "Reddit",
+      "url": "https://himalayas.app/companies/reddit/jobs/senior-data-scientist-ads",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 70.0,
+      "tailored": false,
+      "final_score": 79.7,
+      "status": "plateaued"
+    },
+    {
+      "title": "Data Engineer",
+      "company": "Ledgebrook",
+      "url": "https://himalayas.app/companies/ledgebrook/jobs/data-engineer",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 67.1,
+      "tailored": false,
+      "final_score": 73.6,
+      "status": "max_iterations_reached"
+    },
+    {
+      "title": "Principal AI Process Orchestrator",
+      "company": "Creative Chaos",
+      "url": "https://himalayas.app/companies/creative-chaos/jobs/principal-ai-process-orchestrator",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 63.1,
+      "tailored": false,
+      "final_score": 65.1,
+      "status": "plateaued"
+    },
+    {
+      "title": "Staff AI Data Scientist",
+      "company": "BeyondTrust",
+      "url": "https://himalayas.app/companies/beyondtrust/jobs/staff-ai-data-scientist",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 58.1,
+      "tailored": false
+    },
+    {
+      "title": "Profissional de SRE/DEVOPS (DevOp/SRE - Infraestrutura)",
+      "company": "Zup",
+      "url": "https://himalayas.app/companies/zup/jobs/profissional-de-sre-devops-devop-sre-infraestrutura",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 56.6,
+      "tailored": false
+    },
+    {
+      "title": "Senior Cloud Software Engineer - Efficiency Engineering",
+      "company": "Clickhouse",
+      "url": "https://himalayas.app/companies/clickhouse/jobs/senior-cloud-software-engineer-efficiency-engineering",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 63.1,
+      "tailored": false,
+      "final_score": 65.8,
+      "status": "plateaued"
+    },
+    {
+      "title": "Staff Machine Learning Engineer",
+      "company": "Doma",
+      "url": "https://himalayas.app/companies/doma/jobs/staff-machine-learning-engineer",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 78.4,
+      "tailored": false,
+      "final_score": 81.8,
+      "status": "plateaued"
+    },
+    {
+      "title": "Senior Frontend Engineer (Vue), Create:  Repository Management",
+      "company": "GitLab",
+      "url": "https://himalayas.app/companies/gitlab-com/jobs/senior-frontend-engineer-vue-create-repository-management",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 51.8,
+      "tailored": false
+    },
+    {
+      "title": "Full Stack Data Scientist",
+      "company": "Discovered",
+      "url": "https://himalayas.app/companies/discovered/jobs/full-stack-data-scientist",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 42.7,
+      "tailored": false
+    },
+    {
+      "title": "Associate Data Engineer",
+      "company": "Abacus Insights",
+      "url": "https://himalayas.app/companies/abacus-insights/jobs/associate-data-engineer",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 65.8,
+      "tailored": false,
+      "final_score": 66.3,
+      "status": "plateaued"
+    },
+    {
+      "title": "[Job- 31069] Senior  Generative AI Developer, Brazil",
+      "company": "CI&T",
+      "url": "https://himalayas.app/companies/ci-t/jobs/job-31069-senior-generative-ai-developer-brazil",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 76.4,
+      "tailored": false,
+      "final_score": 77.4,
+      "status": "plateaued"
+    },
+    {
+      "title": "Senior Python Data Scraping Engineer (Freelance)",
+      "company": "Mindrift",
+      "url": "https://himalayas.app/companies/mindrift/jobs/senior-python-data-scraping-engineer-freelance-2894559584",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 71.3,
+      "tailored": true,
+      "final_score": 93.5,
+      "status": "success",
+      "pdf_filename": "resume_Senior_Python_Data_Scraping_Engineer_(Fr.pdf"
+    },
+    {
+      "title": "Cloud Data Architect",
+      "company": "Bright Vision Technologies",
+      "url": "https://himalayas.app/companies/bright-vision-technologies/jobs/cloud-data-architect-2842786848",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 55.3,
+      "tailored": false
+    },
+    {
+      "title": "Mid-Level Big Data Developer",
+      "company": "Talan",
+      "url": "https://himalayas.app/companies/talan/jobs/mid-level-big-data-developer-7004706007",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 67.6,
+      "tailored": false,
+      "final_score": 67.6,
+      "status": "plateaued"
+    },
+    {
+      "title": "AI Software Engineering Teaching Experts",
+      "company": "TripleTen",
+      "url": "https://himalayas.app/companies/tripleten/jobs/ai-software-engineering-teaching-experts-4168973688",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 45.1,
+      "tailored": false
+    },
+    {
+      "title": "AI Solutions Engineer/Architect (UK, Virtual, EUROPE)",
+      "company": "BCD Travel",
+      "url": "https://himalayas.app/companies/bcd-travel/jobs/ai-solutions-engineer-architect-uk-virtual-europe",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 81.0,
+      "tailored": false,
+      "final_score": 83.3,
+      "status": "plateaued"
+    },
+    {
+      "title": "Network Systems Automation Engineer",
+      "company": "Bright Vision Technologies",
+      "url": "https://himalayas.app/companies/bright-vision-technologies/jobs/network-systems-automation-engineer-8951045511",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 66.4,
+      "tailored": false,
+      "final_score": 65.9,
+      "status": "plateaued"
+    },
+    {
+      "title": "Cloud Engineer",
+      "company": "Firemind",
+      "url": "https://himalayas.app/companies/firemind/jobs/cloud-engineer-8621605799",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 66.5,
+      "tailored": false,
+      "final_score": 84.5,
+      "status": "max_iterations_reached"
+    },
+    {
+      "title": "Infrastructure Lead",
+      "company": "adm Group",
+      "url": "https://himalayas.app/companies/adm-group/jobs/infrastructure-lead",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 65.5,
+      "tailored": false,
+      "final_score": 69.4,
+      "status": "plateaued"
+    },
+    {
+      "title": "Enterprise ServiceNow Architect",
+      "company": "Bright Vision Technologies",
+      "url": "https://himalayas.app/companies/bright-vision-technologies/jobs/enterprise-servicenow-architect-8720238958",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 64.0,
+      "tailored": false,
+      "final_score": 65.3,
+      "status": "plateaued"
+    },
+    {
+      "title": "Site Observability Engineer",
+      "company": "Bright Vision Technologies",
+      "url": "https://himalayas.app/companies/bright-vision-technologies/jobs/site-observability-engineer-9816639379",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 59.4,
+      "tailored": false
+    },
+    {
+      "title": "Senior Back End Developer",
+      "company": "CoLab Software",
+      "url": "https://himalayas.app/companies/colab-software/jobs/senior-back-end-developer-7436469267",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 74.9,
+      "tailored": false,
+      "final_score": 75.3,
+      "status": "plateaued"
+    },
+    {
+      "title": "Applied RL Engineer",
+      "company": "Bright Vision Technologies",
+      "url": "https://himalayas.app/companies/bright-vision-technologies/jobs/applied-rl-engineer-3832558031",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 70.1,
+      "tailored": false
+    },
+    {
+      "title": "AI Ops Engineer - Professional Services",
+      "company": "Agiloft",
+      "url": "https://himalayas.app/companies/agiloft/jobs/ai-ops-engineer-professional-services-4354095443",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 71.2,
+      "tailored": false
+    },
+    {
+      "title": "Sr. Fullstack Developer",
+      "company": "iSpace, Inc.",
+      "url": "https://himalayas.app/companies/ispace-inc/jobs/sr-fullstack-developer",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 56.2,
+      "tailored": false
+    },
+    {
+      "title": "Analista de Observabilidade S\u00eanior - Vaga Afirmativa para Mulheres",
+      "company": "Experian",
+      "url": "https://himalayas.app/companies/experian/jobs/analista-de-observabilidade-senior-vaga-afirmativa-para-mulheres",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 55.3,
+      "tailored": false
+    },
+    {
+      "title": "Team Lead Data Products & Analytics (gn)",
+      "company": "Bikeleasing",
+      "url": "https://www.arbeitnow.com/jobs/companies/bikeleasing/remote-team-lead-data-products-analytics-gn-162562",
+      "source": "Arbeitnow",
+      "location": "Remote Deutschland",
+      "quick_score": 55.8,
+      "tailored": false
+    },
+    {
+      "title": "Platform & DevOps Engineer (m/w/d)",
+      "company": "Yoummday GmbH",
+      "url": "https://www.arbeitnow.com/jobs/companies/yoummday-gmbh/platform-devops-engineer-munchen-98477",
+      "source": "Arbeitnow",
+      "location": "M\u00fcnchen",
+      "quick_score": 71.4,
+      "tailored": false
+    },
+    {
+      "title": "AI Engineering Intern",
+      "company": "Sanovio",
+      "url": "https://www.arbeitnow.com/jobs/companies/sanovio/ai-engineering-intern-munich-474623",
+      "source": "Arbeitnow",
+      "location": "Munich",
+      "quick_score": 76.6,
+      "tailored": false
+    },
+    {
+      "title": "Senior AI Engineer",
+      "company": "Quantum",
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/quantum/senior-ai-engineer-london-162547",
+      "source": "Arbeitnow",
+      "location": "London (hybrid)",
+      "quick_score": 68.3,
+      "tailored": false
+    },
+    {
+      "title": "Graduate Data Engineer",
+      "company": "Quantum",
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/quantum/graduate-data-engineer-london-410046",
+      "source": "Arbeitnow",
+      "location": "London (hybrid)",
+      "quick_score": 69.4,
+      "tailored": false
+    },
+    {
+      "title": "Software Engineer III Mobile",
+      "company": "Stone",
+      "url": "https://remoteOK.com/remote-jobs/remote-software-engineer-iii-mobile-stone-1136570",
+      "source": "RemoteOK",
+      "location": "Remote",
+      "quick_score": 68.8,
+      "tailored": false
+    },
+    {
+      "title": "Software Engineer II Golang",
+      "company": "Stone",
+      "url": "https://remoteOK.com/remote-jobs/remote-software-engineer-ii-golang-stone-1136569",
+      "source": "RemoteOK",
+      "location": "Remote",
+      "quick_score": 66.4,
+      "tailored": false
+    },
+    {
+      "title": "Staff Software Engineer",
+      "company": "Evolve",
+      "url": "https://remoteOK.com/remote-jobs/remote-staff-software-engineer-evolve-1136447",
+      "source": "RemoteOK",
+      "location": "Remote",
+      "quick_score": 69.5,
+      "tailored": false
+    },
+    {
+      "title": "Senior Engineer, Boomi Integration Architect",
+      "company": "Wipfli",
+      "url": "https://himalayas.app/companies/wipfli/jobs/senior-engineer-boomi-integration-architect-35204325",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 55.8,
+      "tailored": false
+    },
+    {
+      "title": "Freelance Full-Stack Web App Developer",
+      "company": "Mindrift",
+      "url": "https://himalayas.app/companies/mindrift/jobs/freelance-full-stack-web-app-developer-9593557709",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 55.3,
+      "tailored": false
+    },
+    {
+      "title": "Lead QA Developer",
+      "company": "AlgaeCal",
+      "url": "https://himalayas.app/companies/algaecal/jobs/lead-qa-developer-2278251286",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 50.0,
+      "tailored": false
+    },
+    {
+      "title": "Data Analyst Internship",
+      "company": "ConnectPrep",
+      "url": "https://himalayas.app/companies/connectprep/jobs/data-analyst-internship-7562313288",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 53.4,
+      "tailored": false
+    },
+    {
+      "title": "Senior Software Engineer, Python",
+      "company": "Northbeam",
+      "url": "https://himalayas.app/companies/northbeam/jobs/senior-software-engineer-python",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 75.5,
+      "tailored": false
+    },
+    {
+      "title": "[Job -  31018] Senior Java Developer, Brazil",
+      "company": "CI&T",
+      "url": "https://himalayas.app/companies/ci-t/jobs/job-31018-senior-java-developer-brazil",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 64.7,
+      "tailored": false
+    },
+    {
+      "title": "Pricing Analyst",
+      "company": "RWS Group",
+      "url": "https://himalayas.app/companies/rws-group/jobs/pricing-analyst",
+      "source": "Himalayas",
+      "location": "Remote",
+      "quick_score": 58.0,
+      "tailored": false
     }
   ]
 }

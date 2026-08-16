@@ -10,11 +10,23 @@ from app.core.scorer import score_resume
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
 
-PREFILTER_THRESHOLD = 60.0
+PREFILTER_THRESHOLD = 80.0
 CHECKPOINT_PATH = Path("data/discovery_checkpoint.json")
+STATUS_PATH = Path("data/discovery_status.json")
 
 WAIT_SECONDS_BETWEEN_RETRIES = 600  # 10 minutes
-MAX_WAIT_HOURS = 26  # safety cap so it can't loop forever if something's wrong
+MAX_WAIT_HOURS = 26
+
+
+def _set_running(running: bool) -> None:
+    STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    STATUS_PATH.write_text(json.dumps({"is_running": running}), encoding="utf-8")
+
+
+def is_discovery_running() -> bool:
+    if not STATUS_PATH.exists():
+        return False
+    return json.loads(STATUS_PATH.read_text(encoding="utf-8")).get("is_running", False)
 
 
 def _is_rate_limit_error(e: Exception) -> bool:
@@ -39,11 +51,9 @@ def _save_checkpoint(checkpoint: Dict) -> None:
 
 def _call_with_quota_retry(fn, *args, **kwargs):
     """
-    Calls fn(*args, **kwargs). If it fails on a rate limit (after our
-    key-rotation in groq_client already tried every configured key), waits
-    and retries automatically instead of giving up - so a single run of
-    this pipeline can push through a full daily quota reset on its own,
-    with no manual rerun needed. Capped at MAX_WAIT_HOURS as a safety net.
+    Calls fn(*args, **kwargs). If it fails on a rate limit (after key
+    rotation in groq_client already tried every configured key), waits
+    and retries automatically instead of giving up. Capped at MAX_WAIT_HOURS.
     """
     total_waited = 0
     max_wait_seconds = MAX_WAIT_HOURS * 3600
@@ -53,7 +63,7 @@ def _call_with_quota_retry(fn, *args, **kwargs):
             return fn(*args, **kwargs)
         except Exception as e:
             if not _is_rate_limit_error(e):
-                raise  # a real bug, not a quota issue - surface it immediately
+                raise
 
             if total_waited >= max_wait_seconds:
                 raise RuntimeError(
@@ -74,103 +84,111 @@ def run_discovery_pipeline(
     resume_from_checkpoint: bool = True,
 ) -> List[Dict]:
     """
-    Checkpointing here serves permanent memory across days, not just
-    resuming an interrupted run: any job ever processed (in any previous
-    run, any previous day) is skipped and never shown again. Only jobs
-    that are genuinely new since your last run are returned.
+    Full pipeline with checkpointing + live status tracking:
+    1. Detect search keywords from the resume
+    2. Fetch matching jobs from all configured sources
+    3. Quick-score every job (cheap, no critique/edit LLM calls)
+    4. Fully tailor (score -> critique -> edit loop -> PDF) only jobs that
+       clear PREFILTER_THRESHOLD
+    Saves progress after EVERY job, and marks itself as "running" via
+    STATUS_PATH so a separate process (e.g. the frontend) can poll live
+    progress independent of this function's own return value.
     """
-    checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
-    processed_keys = set(checkpoint["processed_keys"])
-    all_time_results = checkpoint["results"]
-    new_results = []  # only what's found THIS run
+    _set_running(True)
+    try:
+        checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
+        processed_keys = set(checkpoint["processed_keys"])
+        all_time_results = checkpoint["results"]
+        new_results = []
 
-    keywords = detect_search_keywords(facts)
-    jobs = fetch_all_jobs(keywords, max_results=max_jobs_to_scan)
+        keywords = detect_search_keywords(facts)
+        jobs = fetch_all_jobs(keywords, max_results=max_jobs_to_scan)
 
-    print(f"\nScanning {len(jobs)} jobs found...")
-    for idx, job in enumerate(jobs, 1):
-        key = _job_key(job)
-        if key in processed_keys:
-            print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']} - already seen, skipping")
-            continue
+        print(f"\nScanning {len(jobs)} jobs found...")
+        for idx, job in enumerate(jobs, 1):
+            key = _job_key(job)
+            if key in processed_keys:
+                print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']} - already seen, skipping")
+                continue
 
-        print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']}...")
+            print(f"[{idx}/{len(jobs)}] {job['title']} @ {job['company']}...")
 
-        if not job["description"]:
-            processed_keys.add(key)
-            continue
+            if not job["description"]:
+                processed_keys.add(key)
+                continue
 
-        try:
-            jd = _call_with_quota_retry(parse_jd, job["description"])
-        except Exception as e:
-            result = {
-                "title": job["title"], "company": job["company"], "url": job["url"],
-                "source": job.get("source", ""), "location": job.get("location", ""),
-                "quick_score": None, "error": f"JD parsing failed: {e}", "tailored": False,
-            }
-            new_results.append(result)
-            all_time_results.append(result)
-            processed_keys.add(key)
-            _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
-            continue
-
-        try:
-            quick_score = score_resume(jd, facts)["overall_score"]
-        except Exception as e:
-            result = {
-                "title": job["title"], "company": job["company"], "url": job["url"],
-                "source": job.get("source", ""), "location": job.get("location", ""),
-                "quick_score": None, "error": f"Scoring failed: {e}", "tailored": False,
-            }
-            new_results.append(result)
-            all_time_results.append(result)
-            processed_keys.add(key)
-            _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
-            continue
-
-        result = {
-            "title": job["title"], "company": job["company"], "url": job["url"],
-            "source": job.get("source", ""), "location": job.get("location", ""),
-            "quick_score": quick_score, "tailored": False,
-        }
-
-        if quick_score >= PREFILTER_THRESHOLD:
             try:
-                loop_result = _call_with_quota_retry(
-                    run_optimization_loop, jd, facts, target_score=target_score
-                )
+                jd = _call_with_quota_retry(parse_jd, job["description"])
             except Exception as e:
-                result["error"] = f"Optimization loop failed: {e}"
+                result = {
+                    "title": job["title"], "company": job["company"], "url": job["url"],
+                    "source": job.get("source", ""), "location": job.get("location", ""),
+                    "quick_score": None, "error": f"JD parsing failed: {e}", "tailored": False,
+                }
                 new_results.append(result)
                 all_time_results.append(result)
                 processed_keys.add(key)
                 _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
                 continue
 
-            final_score = loop_result["score_history"][-1]
-            result["final_score"] = final_score
-            result["status"] = loop_result["status"]
+            try:
+                quick_score = score_resume(jd, facts)["overall_score"]
+            except Exception as e:
+                result = {
+                    "title": job["title"], "company": job["company"], "url": job["url"],
+                    "source": job.get("source", ""), "location": job.get("location", ""),
+                    "quick_score": None, "error": f"Scoring failed: {e}", "tailored": False,
+                }
+                new_results.append(result)
+                all_time_results.append(result)
+                processed_keys.add(key)
+                _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+                continue
 
-            if final_score >= target_score:
-                tex_source = render_latex(loop_result["facts"])
-                safe_title = job["title"].replace(" ", "_").replace("/", "_")[:40]
-                pdf_path = compile_to_pdf(tex_source, output_filename=f"resume_{safe_title}")
-                result["tailored"] = True
-                result["pdf_filename"] = pdf_path.name
+            result = {
+                "title": job["title"], "company": job["company"], "url": job["url"],
+                "source": job.get("source", ""), "location": job.get("location", ""),
+                "quick_score": quick_score, "tailored": False,
+            }
 
-        new_results.append(result)
-        all_time_results.append(result)
-        processed_keys.add(key)
-        _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+            if quick_score >= PREFILTER_THRESHOLD:
+                try:
+                    loop_result = _call_with_quota_retry(
+                        run_optimization_loop, jd, facts, target_score=target_score
+                    )
+                except Exception as e:
+                    result["error"] = f"Optimization loop failed: {e}"
+                    new_results.append(result)
+                    all_time_results.append(result)
+                    processed_keys.add(key)
+                    _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+                    continue
 
-    print(f"\nDone. {len(new_results)} new jobs found this run "
-          f"({len(all_time_results)} total ever processed).")
-    return new_results
-   
-  
+                final_score = loop_result["score_history"][-1]
+                result["final_score"] = final_score
+                result["status"] = loop_result["status"]
+
+                if final_score >= target_score:
+                    tex_source = render_latex(loop_result["facts"])
+                    safe_title = job["title"].replace(" ", "_").replace("/", "_")[:40]
+                    pdf_path = compile_to_pdf(tex_source, output_filename=f"resume_{safe_title}")
+                    result["tailored"] = True
+                    result["pdf_filename"] = pdf_path.name
+
+            new_results.append(result)
+            all_time_results.append(result)
+            processed_keys.add(key)
+            _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+
+        print(f"\nDone. {len(new_results)} new jobs found this run "
+              f"({len(all_time_results)} total ever processed).")
+        return new_results
+    finally:
+        _set_running(False)
 
 
 def clear_checkpoint() -> None:
+    """Call this to start a completely fresh scan instead of resuming."""
     if CHECKPOINT_PATH.exists():
         CHECKPOINT_PATH.unlink()
 

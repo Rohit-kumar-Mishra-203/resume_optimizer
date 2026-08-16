@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 from typing import cast
 
 API_BASE = "http://127.0.0.1:8000"
@@ -42,7 +43,6 @@ with col2:
 
 run_clicked = st.button("Run optimization", type="primary", use_container_width=True)
 
-# ---------- Run + Results ----------
 if run_clicked:
     if not jd_text.strip():
         st.warning("Paste a job description first.")
@@ -51,11 +51,7 @@ if run_clicked:
             try:
                 res = requests.post(
                     f"{API_BASE}/optimize",
-                    json={
-                        "jd_text": jd_text,
-                        "target_score": target_score,
-                        "max_iterations": max_iterations,
-                    },
+                    json={"jd_text": jd_text, "target_score": target_score, "max_iterations": max_iterations},
                 )
                 res.raise_for_status()
                 st.session_state["result"] = res.json()
@@ -65,7 +61,6 @@ if run_clicked:
 
 if st.session_state.get("result"):
     result = st.session_state["result"]
-
     st.subheader("Result")
 
     status_display_labels = {
@@ -99,40 +94,65 @@ if st.session_state.get("result"):
 
 st.divider()
 
-# ---------- Step 3: Automatic job discovery ----------
+# ---------- Step 3: Automatic job discovery (LIVE) ----------
 st.subheader("Step 3 — Or, find jobs automatically")
 st.caption("Scans your configured job platforms for roles matching your resume, "
            "scores every match, and fully tailors resumes for the ones that clear "
-           "your target score.")
+           "your target score. Results appear live as each job finishes.")
 
 max_jobs_to_scan = st.slider("How many jobs to scan", min_value=5, max_value=100, value=25)
 
 discover_clicked = st.button("Find jobs & auto-tailor", use_container_width=True)
 
 if discover_clicked:
-    with st.spinner("Detecting your domain, searching job boards, and scoring matches "
-                     "- this can take a few minutes..."):
+    try:
+        requests.post(
+            f"{API_BASE}/start-discovery",
+            json={"max_jobs_to_scan": max_jobs_to_scan, "target_score": float(target_score)},
+        )
+    except Exception as e:
+        st.error(f"Could not start discovery: {e}")
+
+    progress_placeholder = st.empty()
+    status_placeholder = st.empty()
+
+    while True:
         try:
-            res = requests.post(
-                f"{API_BASE}/discover-and-optimize",
-                json={"max_jobs_to_scan": max_jobs_to_scan, "target_score": float(target_score)},
-                timeout=600,
-            )
-            res.raise_for_status()
-            st.session_state["discovery_results"] = res.json()["results"]
+            prog = requests.get(f"{API_BASE}/discovery-progress").json()
         except Exception as e:
-            st.error(f"Discovery failed: {e}")
-            st.session_state["discovery_results"] = None
+            status_placeholder.error(f"Lost connection to backend: {e}")
+            break
+
+        results = prog.get("results", [])
+        is_running = prog.get("is_running", False)
+
+        with progress_placeholder.container():
+            st.markdown(f"**{len(results)} jobs processed so far...**")
+            for r in sorted(results, key=lambda x: x.get("quick_score") or 0, reverse=True):
+                with st.container(border=True):
+                    st.markdown(f"**{r['title']}** — {r['company']}")
+                    if r.get("quick_score") is not None:
+                        st.caption(f"Quick score: {r['quick_score']}")
+                    if r.get("tailored"):
+                        st.success(f"Tailored to {r['final_score']} / 100 ✓")
+                    elif r.get("final_score") is not None:
+                        st.caption(f"Reached {r['final_score']} - below target")
+                    elif r.get("note"):
+                        st.caption(f"⚠️ {r['note']}")
+
+        if not is_running:
+            status_placeholder.success("Discovery complete! Full details below.")
+            st.session_state["discovery_results"] = results
+            break
+
+        status_placeholder.info("🔴 Live — still scanning, updating every 5 seconds...")
+        time.sleep(5)
 
 if st.session_state.get("discovery_results"):
     disc_results = st.session_state["discovery_results"]
     tailored = [r for r in disc_results if r.get("tailored")]
 
-    st.markdown(f"**Found {len(disc_results)} new jobs this run — {len(tailored)} fully tailored (target score+)**")
-
-    if any(r.get("note") for r in disc_results):
-        st.warning("Groq's daily quota was reached partway through - results below are partial. "
-                    "Try again after the quota resets to scan more.")
+    st.markdown(f"**{len(disc_results)} jobs processed — {len(tailored)} fully tailored (target score+)**")
 
     try:
         applied_res = requests.get(f"{API_BASE}/applied-jobs")
