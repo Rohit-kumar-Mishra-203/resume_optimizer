@@ -10,11 +10,11 @@ from app.core.scorer import score_resume
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
 
-PREFILTER_THRESHOLD = 80.0
+PREFILTER_THRESHOLD = 85.0
 CHECKPOINT_PATH = Path("data/discovery_checkpoint.json")
 STATUS_PATH = Path("data/discovery_status.json")
 
-WAIT_SECONDS_BETWEEN_RETRIES = 600  # 10 minutes
+WAIT_SECONDS_BETWEEN_RETRIES = 60  # 1 minutes
 MAX_WAIT_HOURS = 26
 
 
