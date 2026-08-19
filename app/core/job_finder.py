@@ -111,7 +111,7 @@ def fetch_himalayas_jobs(keywords: List[str], max_results: int = 100) -> List[Di
 
     return matched
 
-
+'''
 def fetch_remotive_jobs(keywords: List[str], max_results: int = 50) -> List[Dict]:
     """
     Remotive's own `search` param is loose (returns many unrelated results),
@@ -283,10 +283,10 @@ def fetch_weworkremotely_jobs(keywords: List[str], max_results: int = 50) -> Lis
         if len(matched) >= max_results:
             break
     return matched
-
+'''
 
 # ---------- Key-based sources ----------
-
+'''
 def fetch_jooble_jobs(keywords: List[str], max_results: int = 50) -> List[Dict]:
     api_key = os.getenv("JOOBLE_API_KEY")
     if not api_key:
@@ -354,7 +354,7 @@ def fetch_careerjet_jobs(keywords: List[str], max_results: int = 50) -> List[Dic
         })
     return matched
 
-
+'''
 def _dedupe(jobs: List[Dict]) -> List[Dict]:
     seen = set()
     unique = []
@@ -375,13 +375,13 @@ def fetch_all_jobs(keywords: List[str], max_results: int = 100) -> List[Dict]:
     all_jobs = []
     all_jobs += fetch_remoteok_jobs(keywords, max_results=max_results)
     all_jobs += fetch_himalayas_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_remotive_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_arbeitnow_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_weworkremotely_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_jooble_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_careerjet_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_jobicy_jobs(keywords, max_results=max_results)
-    all_jobs += fetch_findwork_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_remotive_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_arbeitnow_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_weworkremotely_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_jooble_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_careerjet_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_jobicy_jobs(keywords, max_results=max_results)
+    #all_jobs += fetch_findwork_jobs(keywords, max_results=max_results)
 
     return _dedupe(all_jobs)[:max_results]
 
