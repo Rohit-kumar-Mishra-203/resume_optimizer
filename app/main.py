@@ -13,7 +13,7 @@ from app.core.jd_parser import parse_jd
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
 from app.core.batch_pipeline import (
-    run_discovery_pipeline, is_discovery_running, CHECKPOINT_PATH
+    run_discovery_pipeline, is_discovery_running, CHECKPOINT_PATH, CURRENT_RUN_PATH
 )
 from app.core.applied_tracker import (
     mark_applied, unmark_applied, get_applied_jobs, update_status, get_experiment_summary
@@ -143,14 +143,11 @@ async def start_discovery(request: DiscoverRequest):
 
 @app.get("/discovery-progress")
 async def discovery_progress():
-    """Returns whatever discovery results exist right now, live, whether
-    or not a scan is still running in the background."""
+    """Returns only THIS run's results, not the full all-time history."""
     results = []
-    if CHECKPOINT_PATH.exists():
-        checkpoint = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
-        results = checkpoint.get("results", [])
+    if CURRENT_RUN_PATH.exists():
+        results = json.loads(CURRENT_RUN_PATH.read_text(encoding="utf-8"))
     return {"results": results, "is_running": is_discovery_running()}
-
 
 @app.post("/mark-applied")
 async def mark_applied_endpoint(request: AppliedRequest):

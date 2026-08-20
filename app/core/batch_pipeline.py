@@ -18,6 +18,14 @@ WAIT_SECONDS_BETWEEN_RETRIES = 60  # 1 minutes
 MAX_WAIT_HOURS = 26
 
 
+CURRENT_RUN_PATH = Path("data/current_run_results.json")
+
+
+def _save_current_run(results: List[Dict]) -> None:
+    CURRENT_RUN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CURRENT_RUN_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
+
+
 def _set_running(running: bool) -> None:
     STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
     STATUS_PATH.write_text(json.dumps({"is_running": running}), encoding="utf-8")
@@ -96,6 +104,7 @@ def run_discovery_pipeline(
     """
     _set_running(True)
     try:
+        _save_current_run([])
         checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
         processed_keys = set(checkpoint["processed_keys"])
         all_time_results = checkpoint["results"]
@@ -129,6 +138,7 @@ def run_discovery_pipeline(
                 all_time_results.append(result)
                 processed_keys.add(key)
                 _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+                _save_current_run(new_results)
                 continue
 
             try:
@@ -143,6 +153,7 @@ def run_discovery_pipeline(
                 all_time_results.append(result)
                 processed_keys.add(key)
                 _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+                _save_current_run(new_results)
                 continue
 
             result = {
@@ -162,6 +173,7 @@ def run_discovery_pipeline(
                     all_time_results.append(result)
                     processed_keys.add(key)
                     _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+                    _save_current_run(new_results)
                     continue
 
                 final_score = loop_result["score_history"][-1]
@@ -179,6 +191,7 @@ def run_discovery_pipeline(
             all_time_results.append(result)
             processed_keys.add(key)
             _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
+            _save_current_run(new_results)
 
         print(f"\nDone. {len(new_results)} new jobs found this run "
               f"({len(all_time_results)} total ever processed).")
