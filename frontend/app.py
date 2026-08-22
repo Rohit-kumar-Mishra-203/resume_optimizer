@@ -8,11 +8,12 @@ from supabase import create_client
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL") or ""
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY") or ""
+# Works locally (.env) AND on Streamlit Cloud (st.secrets)
+SUPABASE_URL = os.getenv("SUPABASE_URL") or st.secrets.get("SUPABASE_URL", "")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY") or st.secrets.get("SUPABASE_ANON_KEY", "")
 
 if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    st.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set in your .env file.")
+    st.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env (local) or Secrets (Streamlit Cloud).")
     st.stop()
 
 API_BASE = "http://127.0.0.1:8000"
