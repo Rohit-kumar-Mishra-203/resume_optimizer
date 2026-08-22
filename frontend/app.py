@@ -1,11 +1,68 @@
 import streamlit as st
 import requests
 import time
+import os
 from typing import cast
+from dotenv import load_dotenv
+from supabase import create_client
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL") or ""
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY") or ""
+
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    st.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set in your .env file.")
+    st.stop()
 
 API_BASE = "http://127.0.0.1:8000"
 
 st.set_page_config(page_title="Resume Optimizer", page_icon="🎯", layout="centered")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# ---------- Auth gate ----------
+if "access_token" not in st.session_state:
+    st.title("🎯 Resume Optimizer")
+    st.caption("Sign in to continue")
+
+    tab_login, tab_signup = st.tabs(["Log in", "Sign up"])
+
+    with tab_login:
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_password")
+        if st.button("Log in", use_container_width=True):
+            try:
+                res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                if res.session is None or res.user is None:
+                    st.error("Login failed: no session returned.")
+                else:
+                    st.session_state["access_token"] = res.session.access_token
+                    st.session_state["user_email"] = res.user.email
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Login failed: {e}")
+
+    with tab_signup:
+        new_email = st.text_input("Email", key="signup_email")
+        new_password = st.text_input("Password", type="password", key="signup_password")
+        if st.button("Sign up", use_container_width=True):
+            try:
+                supabase.auth.sign_up({"email": new_email, "password": new_password})
+                st.success("Account created! Check your email to confirm, then log in.")
+            except Exception as e:
+                st.error(f"Sign up failed: {e}")
+
+    st.stop()  # nothing below this runs until logged in
+
+# ---------- Logged in - build auth headers for every backend call ----------
+AUTH_HEADERS = {"Authorization": f"Bearer {st.session_state['access_token']}"}
+
+with st.sidebar:
+    st.caption(f"Logged in as {st.session_state.get('user_email', '')}")
+    if st.button("Log out"):
+        st.session_state.clear()
+        st.rerun()
 
 st.title("Resume Optimizer")
 st.caption("Upload your resume once. Paste a job description. Watch it get tailored.")
@@ -19,7 +76,7 @@ if resume_file is not None:
         with st.spinner("Parsing resume..."):
             try:
                 files = {"file": (resume_file.name, resume_file.getvalue())}
-                res = requests.post(f"{API_BASE}/upload-resume", files=files)
+                res = requests.post(f"{API_BASE}/upload-resume", files=files, headers=AUTH_HEADERS)
                 res.raise_for_status()
                 data = res.json()
                 st.session_state["last_uploaded"] = resume_file.name
@@ -52,6 +109,7 @@ if run_clicked:
                 res = requests.post(
                     f"{API_BASE}/optimize",
                     json={"jd_text": jd_text, "target_score": target_score, "max_iterations": max_iterations},
+                    headers=AUTH_HEADERS,
                 )
                 res.raise_for_status()
                 st.session_state["result"] = res.json()
@@ -82,7 +140,7 @@ if st.session_state.get("result"):
         for gap in result["genuine_gaps"]:
             st.markdown(f"- {gap}")
 
-    pdf_res = requests.get(f"{API_BASE}/download/{result['pdf_filename']}")
+    pdf_res = requests.get(f"{API_BASE}/download/{result['pdf_filename']}", headers=AUTH_HEADERS)
     if pdf_res.ok:
         st.download_button(
             label="Download tailored resume (PDF)",
@@ -96,12 +154,10 @@ st.divider()
 
 # ---------- Step 3: Automatic job discovery (LIVE) ----------
 st.subheader("Step 3 — Or, find jobs automatically")
-st.caption("Scans your configured job platforms for roles matching your resume, "
-           "scores every match, and fully tailors resumes for the ones that clear "
-           "your target score. Results appear live as each job finishes.")
+st.caption("Scans your configured job platforms, scores every match, and fully "
+           "tailors resumes for the ones that clear your target score.")
 
 max_jobs_to_scan = st.slider("How many jobs to scan", min_value=5, max_value=100, value=25)
-
 discover_clicked = st.button("Find jobs & auto-tailor", use_container_width=True)
 
 if discover_clicked:
@@ -109,6 +165,7 @@ if discover_clicked:
         requests.post(
             f"{API_BASE}/start-discovery",
             json={"max_jobs_to_scan": max_jobs_to_scan, "target_score": float(target_score)},
+            headers=AUTH_HEADERS,
         )
     except Exception as e:
         st.error(f"Could not start discovery: {e}")
@@ -118,7 +175,7 @@ if discover_clicked:
 
     while True:
         try:
-            prog = requests.get(f"{API_BASE}/discovery-progress").json()
+            prog = requests.get(f"{API_BASE}/discovery-progress", headers=AUTH_HEADERS).json()
         except Exception as e:
             status_placeholder.error(f"Lost connection to backend: {e}")
             break
@@ -155,7 +212,7 @@ if st.session_state.get("discovery_results"):
     st.markdown(f"**{len(disc_results)} jobs processed — {len(tailored)} fully tailored (target score+)**")
 
     try:
-        applied_res = requests.get(f"{API_BASE}/applied-jobs")
+        applied_res = requests.get(f"{API_BASE}/applied-jobs", headers=AUTH_HEADERS)
         applied_list = applied_res.json().get("applied_jobs", []) if applied_res.ok else []
     except Exception:
         applied_list = []
@@ -185,7 +242,7 @@ if st.session_state.get("discovery_results"):
                 st.caption(f"⚠️ {r['note']}")
             elif r.get("tailored"):
                 st.success(f"Tailored to {r['final_score']} / 100")
-                pdf_res = requests.get(f"{API_BASE}/download/{r['pdf_filename']}")
+                pdf_res = requests.get(f"{API_BASE}/download/{r['pdf_filename']}", headers=AUTH_HEADERS)
                 if pdf_res.ok:
                     st.download_button(
                         label="Download tailored PDF",
@@ -206,12 +263,12 @@ if st.session_state.get("discovery_results"):
                     "title": r["title"], "company": r["company"],
                     "url": r.get("url", ""), "source": r.get("source", ""),
                     "ats_score": r.get("final_score") or r.get("quick_score"),
-                })
+                }, headers=AUTH_HEADERS)
                 st.rerun()
             elif not applied_checked and already_applied:
                 requests.post(f"{API_BASE}/unmark-applied", json={
                     "title": r["title"], "company": r["company"], "url": "", "source": "",
-                })
+                }, headers=AUTH_HEADERS)
                 st.rerun()
 
 st.divider()
@@ -220,7 +277,7 @@ st.divider()
 st.subheader("📊 One-Month Experiment")
 st.caption("Track whether tailored applications actually lead to interview calls.")
 
-summary_res = requests.get(f"{API_BASE}/experiment-summary", params={"days": 30})
+summary_res = requests.get(f"{API_BASE}/experiment-summary", params={"days": 30}, headers=AUTH_HEADERS)
 if summary_res.ok:
     s = summary_res.json()
     c1, c2, c3, c4 = st.columns(4)
@@ -245,7 +302,7 @@ def _status_label(x: str) -> str:
     return cast(str, status_labels[x])
 
 
-history_res = requests.get(f"{API_BASE}/applied-jobs")
+history_res = requests.get(f"{API_BASE}/applied-jobs", headers=AUTH_HEADERS)
 if history_res.ok:
     applied = history_res.json().get("applied_jobs", [])
     if not applied:
@@ -274,7 +331,7 @@ if history_res.ok:
                 if new_status != current_status:
                     requests.post(f"{API_BASE}/update-application-status", json={
                         "title": job["title"], "company": job["company"], "status": new_status,
-                    })
+                    }, headers=AUTH_HEADERS)
                     st.rerun()
 else:
     st.caption("Could not load application history - is the backend running?")

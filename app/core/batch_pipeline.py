@@ -1,6 +1,5 @@
 import json
 import time
-from pathlib import Path
 from typing import List, Dict
 from app.core.schema import ResumeFacts
 from app.core.domain_detector import detect_search_keywords
@@ -9,32 +8,22 @@ from app.core.jd_parser import parse_jd
 from app.core.scorer import score_resume
 from app.core.latex_compiler import render_latex, compile_to_pdf
 from app.graph.build_graph import run_optimization_loop
+from app.core.user_paths import checkpoint_path, current_run_path, status_path, generated_dir
 
-PREFILTER_THRESHOLD = 80.0
-CHECKPOINT_PATH = Path("data/discovery_checkpoint.json")
-STATUS_PATH = Path("data/discovery_status.json")
-
-WAIT_SECONDS_BETWEEN_RETRIES = 60  # 1 minutes
+PREFILTER_THRESHOLD = 60.0
+WAIT_SECONDS_BETWEEN_RETRIES = 600
 MAX_WAIT_HOURS = 26
 
 
-CURRENT_RUN_PATH = Path("data/current_run_results.json")
+def _set_running(user_id: str, running: bool) -> None:
+    status_path(user_id).write_text(json.dumps({"is_running": running}), encoding="utf-8")
 
 
-def _save_current_run(results: List[Dict]) -> None:
-    CURRENT_RUN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CURRENT_RUN_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
-
-
-def _set_running(running: bool) -> None:
-    STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    STATUS_PATH.write_text(json.dumps({"is_running": running}), encoding="utf-8")
-
-
-def is_discovery_running() -> bool:
-    if not STATUS_PATH.exists():
+def is_discovery_running(user_id: str) -> bool:
+    p = status_path(user_id)
+    if not p.exists():
         return False
-    return json.loads(STATUS_PATH.read_text(encoding="utf-8")).get("is_running", False)
+    return json.loads(p.read_text(encoding="utf-8")).get("is_running", False)
 
 
 def _is_rate_limit_error(e: Exception) -> bool:
@@ -46,38 +35,32 @@ def _job_key(job: Dict) -> str:
     return f"{job['title'].strip().lower()}::{job['company'].strip().lower()}"
 
 
-def _load_checkpoint() -> Dict:
-    if CHECKPOINT_PATH.exists():
-        return json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
+def _load_checkpoint(user_id: str) -> Dict:
+    p = checkpoint_path(user_id)
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
     return {"processed_keys": [], "results": []}
 
 
-def _save_checkpoint(checkpoint: Dict) -> None:
-    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CHECKPOINT_PATH.write_text(json.dumps(checkpoint, indent=2), encoding="utf-8")
+def _save_checkpoint(user_id: str, checkpoint: Dict) -> None:
+    checkpoint_path(user_id).write_text(json.dumps(checkpoint, indent=2), encoding="utf-8")
+
+
+def _save_current_run(user_id: str, results: List[Dict]) -> None:
+    current_run_path(user_id).write_text(json.dumps(results, indent=2), encoding="utf-8")
 
 
 def _call_with_quota_retry(fn, *args, **kwargs):
-    """
-    Calls fn(*args, **kwargs). If it fails on a rate limit (after key
-    rotation in groq_client already tried every configured key), waits
-    and retries automatically instead of giving up. Capped at MAX_WAIT_HOURS.
-    """
     total_waited = 0
     max_wait_seconds = MAX_WAIT_HOURS * 3600
-
     while True:
         try:
             return fn(*args, **kwargs)
         except Exception as e:
             if not _is_rate_limit_error(e):
                 raise
-
             if total_waited >= max_wait_seconds:
-                raise RuntimeError(
-                    f"Still rate-limited after waiting {MAX_WAIT_HOURS} hours - giving up."
-                ) from e
-
+                raise RuntimeError(f"Still rate-limited after waiting {MAX_WAIT_HOURS} hours - giving up.") from e
             mins = WAIT_SECONDS_BETWEEN_RETRIES // 60
             print(f"  Quota exhausted on all keys. Waiting {mins} minutes before retrying "
                   f"(waited {total_waited // 60} min so far)...")
@@ -87,33 +70,28 @@ def _call_with_quota_retry(fn, *args, **kwargs):
 
 def run_discovery_pipeline(
     facts: ResumeFacts,
+    user_id: str,
     max_jobs_to_scan: int = 50,
     target_score: float = 93.0,
     resume_from_checkpoint: bool = True,
 ) -> List[Dict]:
     """
-    Full pipeline with checkpointing + live status tracking:
-    1. Detect search keywords from the resume
-    2. Fetch matching jobs from all configured sources
-    3. Quick-score every job (cheap, no critique/edit LLM calls)
-    4. Fully tailor (score -> critique -> edit loop -> PDF) only jobs that
-       clear PREFILTER_THRESHOLD
-    Saves progress after EVERY job, and marks itself as "running" via
-    STATUS_PATH so a separate process (e.g. the frontend) can poll live
-    progress independent of this function's own return value.
+    Per-user discovery pipeline. Every read/write is scoped to user_id via
+    user_paths, so different users' checkpoints, in-progress status, and
+    results never mix.
     """
-    _set_running(True)
+    _set_running(user_id, True)
     try:
-        _save_current_run([])
-        checkpoint = _load_checkpoint() if resume_from_checkpoint else {"processed_keys": [], "results": []}
+        _save_current_run(user_id, [])
+        checkpoint = _load_checkpoint(user_id) if resume_from_checkpoint else {"processed_keys": [], "results": []}
         processed_keys = set(checkpoint["processed_keys"])
         all_time_results = checkpoint["results"]
-        new_results = []
+        new_results: List[Dict] = []
 
         keywords = detect_search_keywords(facts)
         jobs = fetch_all_jobs(keywords, max_results=max_jobs_to_scan)
 
-        print(f"\nScanning {len(jobs)} jobs found...")
+        print(f"\n[{user_id}] Scanning {len(jobs)} jobs found...")
         for idx, job in enumerate(jobs, 1):
             key = _job_key(job)
             if key in processed_keys:
@@ -137,8 +115,8 @@ def run_discovery_pipeline(
                 new_results.append(result)
                 all_time_results.append(result)
                 processed_keys.add(key)
-                _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
-                _save_current_run(new_results)
+                _save_checkpoint(user_id, {"processed_keys": list(processed_keys), "results": all_time_results})
+                _save_current_run(user_id, new_results)
                 continue
 
             try:
@@ -152,8 +130,8 @@ def run_discovery_pipeline(
                 new_results.append(result)
                 all_time_results.append(result)
                 processed_keys.add(key)
-                _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
-                _save_current_run(new_results)
+                _save_checkpoint(user_id, {"processed_keys": list(processed_keys), "results": all_time_results})
+                _save_current_run(user_id, new_results)
                 continue
 
             result = {
@@ -172,8 +150,8 @@ def run_discovery_pipeline(
                     new_results.append(result)
                     all_time_results.append(result)
                     processed_keys.add(key)
-                    _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
-                    _save_current_run(new_results)
+                    _save_checkpoint(user_id, {"processed_keys": list(processed_keys), "results": all_time_results})
+                    _save_current_run(user_id, new_results)
                     continue
 
                 final_score = loop_result["score_history"][-1]
@@ -183,41 +161,25 @@ def run_discovery_pipeline(
                 if final_score >= target_score:
                     tex_source = render_latex(loop_result["facts"])
                     safe_title = job["title"].replace(" ", "_").replace("/", "_")[:40]
-                    pdf_path = compile_to_pdf(tex_source, output_filename=f"resume_{safe_title}")
+                    out_path = str(generated_dir(user_id) / f"resume_{safe_title}")
+                    pdf_path = compile_to_pdf(tex_source, output_filename=out_path)
                     result["tailored"] = True
                     result["pdf_filename"] = pdf_path.name
 
             new_results.append(result)
             all_time_results.append(result)
             processed_keys.add(key)
-            _save_checkpoint({"processed_keys": list(processed_keys), "results": all_time_results})
-            _save_current_run(new_results)
+            _save_checkpoint(user_id, {"processed_keys": list(processed_keys), "results": all_time_results})
+            _save_current_run(user_id, new_results)
 
-        print(f"\nDone. {len(new_results)} new jobs found this run "
+        print(f"\n[{user_id}] Done. {len(new_results)} new jobs found this run "
               f"({len(all_time_results)} total ever processed).")
         return new_results
     finally:
-        _set_running(False)
+        _set_running(user_id, False)
 
 
-def clear_checkpoint() -> None:
-    """Call this to start a completely fresh scan instead of resuming."""
-    if CHECKPOINT_PATH.exists():
-        CHECKPOINT_PATH.unlink()
-
-
-if __name__ == "__main__":
-    with open("data/resume_facts.json", "r", encoding="utf-8") as f:
-        facts = ResumeFacts.model_validate_json(f.read())
-
-    results = run_discovery_pipeline(facts, max_jobs_to_scan=15)
-
-    print(f"\nScanned {len(results)} jobs total\n")
-    for r in results:
-        if r.get("quick_score") is None:
-            print(f"[SKIPPED] {r['title']} @ {r['company']} - {r.get('error')}")
-        elif r["tailored"]:
-            print(f"[TAILORED] {r['title']} @ {r['company']} - "
-                  f"quick={r['quick_score']} final={r.get('final_score')} -> {r['pdf_filename']}")
-        else:
-            print(f"[SCANNED]  {r['title']} @ {r['company']} - quick_score={r['quick_score']}")
+def clear_checkpoint(user_id: str) -> None:
+    p = checkpoint_path(user_id)
+    if p.exists():
+        p.unlink()
