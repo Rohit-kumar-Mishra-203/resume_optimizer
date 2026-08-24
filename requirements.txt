@@ -168,7 +168,7 @@ rich-toolkit==0.19.7
 rpds-py==0.30.0
 safetensors==0.8.0
 scikit-learn==1.5.2
-scipy==1.15.3
+scipy<1.14
 sentence-transformers==5.7.0
 shellingham==1.5.4
 six==1.17.0
