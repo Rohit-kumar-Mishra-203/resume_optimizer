@@ -15,7 +15,7 @@ part1_llm = llm.with_structured_output(ResumeFactsPart1)
 part2_llm = llm.with_structured_output(ResumeFactsPart2)
 
 PART1_PROMPT = """You are extracting structured data from a resume - specifically
-the personal info, summary, skills, education, and certifications ONLY.
+the personal info, skills, education, and certifications ONLY.
 Do NOT extract experience or projects - those are handled separately.
 
 Rules:
