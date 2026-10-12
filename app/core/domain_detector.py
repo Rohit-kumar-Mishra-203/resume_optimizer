@@ -8,8 +8,8 @@ from app.core.schema import ResumeFacts
 load_dotenv()
 
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
-    api_key=cast(SecretStr, os.getenv("GROQ_API_KEY")),
+    model="openai/gpt-oss-120b",
+    api_key=cast(SecretStr, os.getenv("GROQ_API_KEY_1")),
     temperature=0,
 )
 
