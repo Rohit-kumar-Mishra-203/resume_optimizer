@@ -9,7 +9,7 @@ load_dotenv()
 T = TypeVar("T", bound=BaseModel)
 
 _raw_keys = [
-    os.getenv("GROQ_API_KEY"),
+    os.getenv("GROQ_API_KEY_1"),
     os.getenv("GROQ_API_KEY_2"),
     os.getenv("GROQ_API_KEY_3"),
 ]
